@@ -120,6 +120,8 @@ def hpr(
     if points.shape[0] < 4:
         raise ValueError("Need at least 4 non-coplanar points for a 3D hull.")
 
+    aug = torch.zeros(1, 3, dtype=points.dtype)         # the camera point C=0
+    points = torch.vstack([points, aug]) 
     points_np = points.numpy().astype(np.float64, copy=False)
     # points_np = points.detach().cpu().numpy()
     hull = ConvexHull(points_np)
@@ -163,13 +165,13 @@ if __name__ == "__main__":
             )
         case 2:
             hpr(point_cloud_path="data/bridge_pointcloud.npz",
-                output_path="./data/bridge_pointcloud_hull.ply",
+                output_path="./data/bridge_pointcloud_hull.npz",
                 point_color=(1, 0, 0)
                 )
-            img = visualize_pointcloud(point_cloud_path="./data/bridge_pointcloud_hull.ply")
+            img = visualize_pointcloud(point_cloud_path="./data/bridge_pointcloud_hull.npz")
             plt.imsave("images/bridge_hpr.jpg", img)
             visualize_pointcloud_interactive(
-                point_cloud_path="./data/bridge_pointcloud_hull.ply",
+                point_cloud_path="./data/bridge_pointcloud_hull.npz",
                 point_color=[1, 0, 0],
                 image_size=args.image_size*2, 
                 background_color=[0, 0, 0]

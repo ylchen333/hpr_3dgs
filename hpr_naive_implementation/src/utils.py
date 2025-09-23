@@ -135,7 +135,7 @@ def save_tensors_as_point_cloud(point_tensors, filename="output.ply"):
         point_tensors (list): A list of PyTorch tensors, where each tensor
                                 represents a set of points (e.g., shape N x 3 for XYZ,
                                 or N x 6 for XYZRGB).
-        filename (str): The name of the output PLY file.
+        filename (str): The name of the output NPZ file.
     """
     # Concatenate all point tensors into a single tensor
     combined_points = torch.cat(point_tensors, dim=0)
@@ -143,20 +143,32 @@ def save_tensors_as_point_cloud(point_tensors, filename="output.ply"):
     # Convert the PyTorch tensor to a NumPy array
     points_np = combined_points.cpu().numpy()
 
+    # Split into verts and colors
+    verts = points_np[:, :3].astype(np.float32)
+
+    if points_np.shape[1] >= 6:
+        colors = points_np[:, 3:6].astype(np.float32)
+        if colors.max() > 1.0:       # normalize if 0–255
+            colors /= 255.0
+    else:
+        colors = np.ones_like(verts, dtype=np.float32)
     # Create an Open3D PointCloud object
-    pcd = o3d.geometry.PointCloud()
+    # pcd = o3d.geometry.PointCloud()
 
     # Set the points (assuming first 3 columns are x, y, z coordinates)
-    pcd.points = o3d.utility.Vector3dVector(points_np[:, :3])
+    # pcd.points = o3d.utility.Vector3dVector(points_np[:, :3])
 
     # If color information is present (e.g., N x 6 tensor for XYZRGB)
-    if points_np.shape[1] >= 6:
-        colors = points_np[:, 3:6]
+    # if points_np.shape[1] >= 6:
+    #     colors = points_np[:, 3:6]
         # Normalize color values to [0, 1] if they are not already
-        if colors.max() > 1.0:
-            colors = colors / 255.0
-        pcd.colors = o3d.utility.Vector3dVector(colors)
+        # if colors.max() > 1.0:
+        #     colors = colors / 255.0
+        # pcd.colors = o3d.utility.Vector3dVector(colors)
 
-    # Write to a PLY file
-    o3d.io.write_point_cloud(filename, pcd)
+    # Write to a NPZ file
+    # after you have numpy arrays verts (N,3) and rgb (N,3)
+    np.savez("./data/bridge_pointcloud_hull.npz", verts=verts, rgb=colors)
+
+    # o3d.io.write_point_cloud(filename, pcd)
     print(f"Point cloud saved to '{filename}'.")

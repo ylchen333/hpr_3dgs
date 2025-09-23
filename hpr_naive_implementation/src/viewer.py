@@ -6,6 +6,31 @@ import matplotlib.pyplot as plt
 
 from utils import get_device, get_points_renderer
 
+# viewer.py (near the top of visualize_pointcloud_interactive)
+
+def _to_batched_pNx3(x):
+    x = torch.as_tensor(x, dtype=torch.float32)
+    if x.ndim == 2 and x.shape[1] == 3:
+        x = x.unsqueeze(0)  # -> (1,N,3)
+    if x.ndim != 3 or x.shape[2] != 3:
+        raise ValueError(f"Expected (N,3) or (B,N,3), got {tuple(x.shape)}")
+    return x
+
+def _prep_colors(c, B, N):
+    if c is None:
+        return torch.ones((B, N, 3), dtype=torch.float32)
+    c = torch.as_tensor(c, dtype=torch.float32)
+    if c.ndim == 2 and c.shape[1] == 3:
+        c = c.unsqueeze(0)  # (1,N,3)
+    if c.ndim != 3 or c.shape[2] not in (3, 4):
+        raise ValueError(f"Expected colors (N,3/4) or (B,N,3/4), got {tuple(c.shape)}")
+    if c.shape[2] == 4:  # drop alpha if present
+        c = c[:, :, :3]
+    if c.shape[0] != B or c.shape[1] != N:
+        raise ValueError(f"Colors shape {tuple(c.shape)} must match (B,N,3) with B={B}, N={N}")
+    # clamp to [0,1]
+    return c.clamp(0.0, 1.0)
+
 
 class P3DPointCloudViewer:
     """
@@ -132,10 +157,12 @@ class P3DPointCloudViewer:
 
 
 # ---------- convenience function that plugs into your code ----------
+# from viewer import P3DPointCloudViewer  # wherever it's defined
+
 def visualize_pointcloud_interactive(
     point_cloud_path="data/bridge_pointcloud.npz",
     stride: int = 50,
-    point_color=None,
+    point_color=None,                 # e.g., (1.0, 0.2, 0.2)
     image_size: int = 512,
     background_color=(0, 0, 0),
     device=None,
@@ -143,19 +170,59 @@ def visualize_pointcloud_interactive(
     if device is None:
         device = get_device()
 
-    pc = np.load(point_cloud_path)
-    verts = torch.tensor(pc["verts"][::stride], dtype=torch.float32)
-    rgb = torch.tensor(pc["rgb"][::stride], dtype=torch.float32)
-    if point_color is not None: 
-        color = torch.tensor(point_color, dtype=torch.float32, device=device) 
-        B, N, _ = verts.shape
-        rgb = color.view(1, 1, 3).expand(B, N, 3)
+    # --- load NPZ ---
+    data = np.load(point_cloud_path)
 
+    print("viewer verts", data["verts"].shape, data["verts"].dtype)
+    print("viewer rgb",   data["rgb"].shape,   data["rgb"].dtype)
+    if "verts" not in data:
+        raise ValueError(f"'verts' not found in {point_cloud_path}")
+    verts_np = data["verts"]
+    rgb_np   = data["rgb"] if "rgb" in data.files else np.ones_like(verts_np, dtype=np.float32)
+
+    # --- stride / subsample ---
+    verts_np = verts_np[::stride]
+    rgb_np   = rgb_np[::stride]
+
+    # --- drop alpha if present, normalize to [0,1] ---
+    if rgb_np.shape[-1] == 4:
+        rgb_np = rgb_np[:, :3]
+    rgb_np = rgb_np.astype(np.float32)
+    if rgb_np.max() > 1.0:
+        rgb_np /= 255.0
+    rgb_np = np.clip(rgb_np, 0.0, 1.0)
+
+    # --- override color if requested ---
+    if point_color is not None:
+        color = np.asarray(point_color, dtype=np.float32).reshape(1, 3)
+        rgb_np = np.repeat(color, repeats=verts_np.shape[0], axis=0)
+
+    # --- to torch, add batch dim -> (1,N,3) ---
+    verts = torch.from_numpy(verts_np).float()
+    rgb   = torch.from_numpy(rgb_np).float()
+    # if verts.ndim == 2:
+    #     verts = verts.unsqueeze(0)
+    # if rgb.ndim == 2:
+    #     rgb = rgb.unsqueeze(0)
+
+    # --- final sanity checks ---
+    if verts.shape[-1] != 3 or rgb.shape[-1] not in (3,):
+        raise ValueError(f"Expected verts/rgb last dim = 3, got {verts.shape} / {rgb.shape}")
+    if verts.shape[:2] != rgb.shape[:2]:
+        raise ValueError(f"Verts {verts.shape} and RGB {rgb.shape} must have same (B,N)")
+
+    # --- to device ---
+    verts = verts.to(device)
+    rgb   = rgb.to(device)
+
+    # --- call your viewer (expects batched tensors) ---
     viewer = P3DPointCloudViewer(
-        verts_xyz=verts,
-        rgb=rgb,
+        verts_xyz=verts,               # (B,N,3)
+        rgb=rgb,                       # (B,N,3)
         image_size=image_size,
         background_color=background_color,
         device=device,
     )
     viewer.show()
+
+
