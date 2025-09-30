@@ -73,37 +73,6 @@ def point_transformation(
     verts_flipped = verts_translated + 2 * (R - norms) * verts_translated / norms
 
     return verts_flipped, verts_translated
-    # if device is None:
-    #     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-
-
-    # pc_data = np.load(point_cloud_path, mmap_mode='r')
-    # verts_raw = torch.tensor(pc_data["verts"][::50], dtype=torch.float32, device=device)
-
-
-
-    # print("point_transform verts sshape:" + str(verts_raw.shape))
-    
-
-    # # normalize coordinates s.t. C is origin
-    # if world_to_cam is not None:
-    #     W2C = torch.as_tensor(world_to_cam, dtype=torch.float32, device=device)
-    #     Rm = W2C[:3, :3]                     # (3,3)
-    #     t  = W2C[:3,  3]                     # (3,)
-    #     verts_translated = verts_raw @ Rm.T + t                 # (N,3)
-    #     camera_coordinates = torch.zeros(3, device=device)
-    # else:
-    #     verts_translated = verts_raw - torch.tensor(camera_coordinates, dtype=torch.float32, device=device)
-
-
-
-    # # decide an R for the sphere we flip to (simple: max dist away from Camera, just approx using min max)
-    # norms = torch.linalg.norm(verts_translated, dim=1, keepdim=True).clamp(min=1e-6)
-    # R = norms.max().item() * 1.02
-    # verts_flipped = verts_translated + 2 * (R - norms) * verts_translated / norms
-
-    # print("point_transform verts flipped shape:", verts_flipped.shape)
-    # return verts_flipped, verts_raw  # flipped and original space
 
 
 

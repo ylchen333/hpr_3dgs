@@ -182,7 +182,7 @@ class GaussianRasterizer(nn.Module):
                 positions,
                 raster_settings.viewmatrix,
                 raster_settings.projmatrix)
-            
+            # call hpr here?
         return visible
 
     def forward(self, means3D, means2D, opacities, shs = None, colors_precomp = None, scales = None, rotations = None, cov3D_precomp = None):
