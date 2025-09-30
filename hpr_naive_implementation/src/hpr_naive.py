@@ -12,39 +12,43 @@ import pickle
 from PIL import Image, ImageDraw
 import imageio
 import json
+from simple_interactive_viewer import visualize_pointcloud_interactive
+import visualize
+from open3d_visualize import visualize_hpr_result, debug_indexing_with_open3d
+from HPR import HPR
 
-from utils import get_device, get_points_renderer, save_tensors_as_point_cloud
-from viewer import visualize_pointcloud_interactive
 
 DEBUG = False
 
 # ------------------------ hpr --------------------------------------------------------------------------
 
-def visualize_pointcloud(
-    point_cloud_path="data/bridge_pointcloud.npz", output_path="images/bridge.jpg", 
-    point_color=None,
-    background_color=np.zeros(3), image_size=256, device=None):
-    
-    if device is None:
-        device = get_device()
+def compute_camera_outside_bounds(point_cloud_path, scale=1.5):
+    """
+    Returns a camera location outside the bounding box of the point cloud.
 
-    renderer = get_points_renderer(
-        image_size=image_size, background_color=background_color
-    )
+    Args:
+        point_cloud_path (str): Path to .npz file containing 'verts'
+        scale (float): How far outside the bounding box to place the camera
 
-    point_cloud = np.load(point_cloud_path)
-    verts = torch.Tensor(point_cloud["verts"][::50]).to(device).unsqueeze(0)
-    rgb = torch.Tensor(point_cloud["rgb"][::50]).to(device).unsqueeze(0)
-    if point_color is not None: 
-        color = torch.tensor(point_color, dtype=torch.float32, device=device) 
-        B, N, _ = verts.shape
-        rgb = color.view(1, 1, 3).expand(B, N, 3)
-    point_cloud = pytorch3d.structures.Pointclouds(points=verts, features=rgb)
-    R, T = pytorch3d.renderer.look_at_view_transform(4, 10, 0)
-    cameras = pytorch3d.renderer.FoVPerspectiveCameras(R=R, T=T, device=device)
-    rend = renderer(point_cloud, cameras=cameras)
-    rend = rend.cpu().numpy()[0, ..., :3]  # (B, H, W, 4) -> (H, W, 3)
-    return rend
+    Returns:
+        np.ndarray: A 3D camera position
+    """
+    verts = np.load(point_cloud_path)["verts"]  # (N, 3)
+    min_bounds = verts.min(axis=0)
+    max_bounds = verts.max(axis=0)
+    center = (min_bounds + max_bounds) / 2
+    diag = np.linalg.norm(max_bounds - min_bounds)
+
+    # Position camera along -Z direction, far away from the center
+    # camera = center + np.array([0, 0, -1]) * diag * scale # side view
+    # camera = center + np.array([1, 1, -1]) * diag * scale # diag down
+    camera = center + np.array([0.2, 0.2, 1.0]) * diag * scale # top down ish
+
+
+
+    print(f"[Camera] Bounds diag={diag:.2f}, Camera Pos={camera}")
+    return camera
+
 
 def point_transformation(
     point_cloud_path="data/bridge_pointcloud.npz", 
@@ -59,35 +63,47 @@ def point_transformation(
     if device is None:
         device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
-
     pc_data = np.load(point_cloud_path, mmap_mode='r')
-    verts = torch.Tensor(pc_data["verts"][::50]).to(device) #.unsqueeze(0)
+    verts_raw = torch.tensor(pc_data["verts"][::50], dtype=torch.float32, device=device)
 
-    print("point_transform verts sshape:" + str(verts.shape))
+    camera_tensor = torch.tensor(camera_coordinates, dtype=torch.float32, device=device)
+    verts_translated = verts_raw - camera_tensor
+    norms = torch.linalg.norm(verts_translated, dim=1, keepdim=True).clamp(min=1e-6)
+    R = norms.max().item() * 1.02
+    verts_flipped = verts_translated + 2 * (R - norms) * verts_translated / norms
+
+    return verts_flipped, verts_translated
+    # if device is None:
+    #     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+
+
+    # pc_data = np.load(point_cloud_path, mmap_mode='r')
+    # verts_raw = torch.tensor(pc_data["verts"][::50], dtype=torch.float32, device=device)
+
+
+
+    # print("point_transform verts sshape:" + str(verts_raw.shape))
     
 
-    # normalize coordinates s.t. C is origin
-    if world_to_cam is not None:
-        W2C = torch.as_tensor(world_to_cam, dtype=torch.float32, device=device)
-        Rm = W2C[:3, :3]                     # (3,3)
-        t  = W2C[:3,  3]                     # (3,)
-        verts = verts @ Rm.T + t                 # (N,3)
-        camera_coordinates = torch.zeros(3, device=device)
-    else:
-        verts = verts - torch.as_tensor(camera_coordinates, dtype=torch.float32, device=device)
-
-    # decide an R for the sphere we flip to (simple: max dist away from Camera, just approx using min max)
-    norms = torch.linalg.norm(verts, dim=1, keepdim=True)
-    R = norms.max().item() * 1.02
-
-    print("point_transform norms shape:" + str(norms.shape))
+    # # normalize coordinates s.t. C is origin
+    # if world_to_cam is not None:
+    #     W2C = torch.as_tensor(world_to_cam, dtype=torch.float32, device=device)
+    #     Rm = W2C[:3, :3]                     # (3,3)
+    #     t  = W2C[:3,  3]                     # (3,)
+    #     verts_translated = verts_raw @ Rm.T + t                 # (N,3)
+    #     camera_coordinates = torch.zeros(3, device=device)
+    # else:
+    #     verts_translated = verts_raw - torch.tensor(camera_coordinates, dtype=torch.float32, device=device)
 
 
-    # spherical flipping
-    verts = verts + 2 *(R - norms) * verts / norms
-    verts.unsqueeze(1)
-    print("point_transform verts transformed shape:" + str(verts.shape))
-    return verts
+
+    # # decide an R for the sphere we flip to (simple: max dist away from Camera, just approx using min max)
+    # norms = torch.linalg.norm(verts_translated, dim=1, keepdim=True).clamp(min=1e-6)
+    # R = norms.max().item() * 1.02
+    # verts_flipped = verts_translated + 2 * (R - norms) * verts_translated / norms
+
+    # print("point_transform verts flipped shape:", verts_flipped.shape)
+    # return verts_flipped, verts_raw  # flipped and original space
 
 
 
@@ -101,36 +117,59 @@ def hpr(
     input a point cloud, make a point cloud with only visible points
     '''
     # transform the points s.t. C is the origin, where C is the camera
-    points = point_transformation(
-    point_cloud_path="data/bridge_pointcloud.npz", output_path="images/bridge.jpg", 
-    camera_coordinates=camera_coordinates,
-    point_color=None,
-    background_color=background_color, image_size=256, device=None)
+    points_flipped, points_translated  = point_transformation(
+                    point_cloud_path="data/bridge_pointcloud.npz", output_path="images/bridge.jpg", 
+                    camera_coordinates=camera_coordinates,
+                    point_color=None,
+                    background_color=background_color, image_size=256, device=None)
 
     # apply convexhull algo to the transformed points
     # according to file:///home/lorie/Downloads/cgf70046.pdf, we can approximate the CH differently:
     # compute a visibility indicator (where visible points maximize the projection in the direction d_i = {some math from the paper})
     # 
-    if points.ndim == 3 and points.shape[0] == 1:
-        points = points.squeeze(0)   
+    if points_flipped.ndim == 3 and points_flipped.shape[0] == 1:
+        points_flipped = points_flipped.squeeze(0)
+        points_translated = points_translated.squeeze(0)
 
-    points = points.detach().cpu()
-    mask = torch.isfinite(points).all(dim=1)         # drop any NaN/Inf rows
-    points = points[mask]
-    if points.shape[0] < 4:
+    points_flipped = points_flipped.detach().cpu()
+    points_translated = points_translated.detach().cpu()
+
+    mask = torch.isfinite(points_flipped).all(dim=1)
+    points_flipped = points_flipped[mask]
+    points_translated = points_translated[mask]  # 👈 align filtered original points
+    if points_flipped.shape[0] < 4:
         raise ValueError("Need at least 4 non-coplanar points for a 3D hull.")
+    
+    print("verts_raw shape:", points_translated.shape)
+    print("verts_flipped shape:", points_flipped.shape)
+    print("finite_mask sum:", mask.sum())
 
-    aug = torch.zeros(1, 3, dtype=points.dtype)         # the camera point C=0
-    points = torch.vstack([points, aug]) 
-    points_np = points.numpy().astype(np.float64, copy=False)
-    # points_np = points.detach().cpu().numpy()
+
+    # Append camera origin to flipped only
+    aug = torch.zeros(1, 3, dtype=points_flipped.dtype)
+    points_flipped_with_cam = torch.cat([points_flipped, aug], dim=0)
+    points_np = points_flipped_with_cam.cpu().numpy()
+
     hull = ConvexHull(points_np)
-    # hull_pc_file = "./data/hull.ply"
-    idx = torch.from_numpy(hull.vertices).long()             # (K,)
-    hull_points = points[idx]
-    save_tensors_as_point_cloud([hull_points], filename=output_path)
+    print("HPR hull volume:", hull.volume)
+    print("HPR hull area:", hull.area)
 
-    return 
+    idx = torch.from_numpy(hull.vertices).long()
+
+    # ⚠️ We need to exclude the camera point index (last point)
+    idx = idx[idx < points_flipped.shape[0]]
+
+    # ✅ Select the correct points from original space
+    hull_points_ogspace = points_translated[idx]
+
+    debug_indexing_with_open3d(point_cloud_path, idx)
+
+    #  project points back to original space
+    # hull_points_ogspace = points_og[idx] + torch.tensor(camera_coordinates, device=hull_points.device, dtype=hull_points.dtype)
+
+
+    return hull_points_ogspace
+
 # ------------------------ main --------------------------------------------------------------------------
 
 
@@ -154,7 +193,7 @@ if __name__ == "__main__":
 
     match args.task:
         case 1:
-            img = visualize_pointcloud(point_color=[1.0, 0.0, 0.0])
+            img = visualize.visualize_pointcloud(point_color=[1.0, 0.0, 0.0])
             plt.imsave("images/bridge.jpg", img)
             visualize_pointcloud_interactive(
                 point_cloud_path="data/bridge_pointcloud.npz",
@@ -164,17 +203,50 @@ if __name__ == "__main__":
                 background_color=(0, 0, 0),
             )
         case 2:
-            hpr(point_cloud_path="data/bridge_pointcloud.npz",
+            camera_coord = compute_camera_outside_bounds("data/bridge_pointcloud.npz", scale=2.0)
+            hpr_pc = hpr(point_cloud_path="data/bridge_pointcloud.npz",
                 output_path="./data/bridge_pointcloud_hull.npz",
-                point_color=(1, 0, 0)
+                point_color=(1, 0, 0), camera_coordinates=camera_coord
                 )
-            img = visualize_pointcloud(point_cloud_path="./data/bridge_pointcloud_hull.npz")
-            plt.imsave("images/bridge_hpr.jpg", img)
-            visualize_pointcloud_interactive(
-                point_cloud_path="./data/bridge_pointcloud_hull.npz",
-                point_color=[1, 0, 0],
-                image_size=args.image_size*2, 
-                background_color=[0, 0, 0]
-            )
+            
+            visualize.save_tensors_as_point_cloud([hpr_pc], filename="./data/bridge_pointcloud_hull.npz")
+
+            # img = visualize.visualize_pointcloud(point_cloud_path="./data/bridge_pointcloud_hull.npz")
+            # plt.imsave("images/bridge_hpr.jpg", img)
+            # visualize_pointcloud_interactive(
+            #     point_cloud_path="./data/bridge_pointcloud_hull.npz",
+            #     point_color=[1, 0, 0],
+            #     image_size=args.image_size*2, 
+            #     background_color=[0.8, 0.8, 0.8]
+            # )
+
+            visualize_hpr_result()
+
+
+            visualize.render_rotating_pointcloud_gif("data/bridge_pointcloud.npz", "images/original.gif")
+            visualize.render_rotating_pointcloud_gif("data/bridge_pointcloud_hull.npz", "images/hpr.gif")
+
+        case 3: # using the implementation of hpr from original authors
+            camera_coord = compute_camera_outside_bounds("data/bridge_pointcloud.npz", scale=2.0)
+            device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+            pc_data = np.load("data/bridge_pointcloud.npz", mmap_mode='r')
+            verts_raw = torch.tensor(pc_data["verts"][::50], dtype=torch.float32, device=device)  # (N, 3)
+            print("verts_raw .size before reshape:", verts_raw.size())
+
+            verts_batched = verts_raw.T.unsqueeze(0)  # (1, 3, N)
+            print("verts_batched .size after reshape:", verts_batched.size())
+            camera_tensor = torch.tensor(camera_coord, dtype=torch.float32, device=device).view(1, 3, 1)
+
+
+
+            visible_points, visible_indices = HPR(verts_batched, camera_tensor, gamma=1.0, use_linear_kernel=False)
+            visible_points_np = visible_points.squeeze(0).permute(1, 0).cpu()
+            visualize.save_tensors_as_point_cloud([visible_points_np], filename="./data/author_bridge_pointcloud_hull.npz")
+            visualize_hpr_result(original_path="data/bridge_pointcloud.npz", filtered_path="./data/author_bridge_pointcloud_hull.npz")
+
+
+            visualize.render_rotating_pointcloud_gif("data/bridge_pointcloud.npz", "images/author_original.gif")
+            visualize.render_rotating_pointcloud_gif("data/author_bridge_pointcloud_hull.npz", "images/author_hpr.gif")
+
         case _:
             pass

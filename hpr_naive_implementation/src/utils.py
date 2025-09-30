@@ -46,7 +46,7 @@ def get_points_renderer(
             device = torch.device("cuda:0")
         else:
             device = torch.device("cpu")
-    raster_settings = PointsRasterizationSettings(image_size=image_size, radius=radius,)
+    raster_settings = PointsRasterizationSettings(image_size=image_size, radius=radius,bin_size=0,) # for naive rasterization to prevent overflow
     renderer = PointsRenderer(
         rasterizer=PointsRasterizer(raster_settings=raster_settings),
         compositor=AlphaCompositor(background_color=background_color),
@@ -127,7 +127,7 @@ def load_cow_mesh(path="data/cow_mesh.obj"):
     faces = faces.verts_idx
     return vertices, faces
 
-def save_tensors_as_point_cloud(point_tensors, filename="output.ply"):
+def save_tensors_as_point_cloud(point_tensors, filename="output.npz"):
     """
     Saves a list of PyTorch tensors of points into a PLY point cloud file.
 
@@ -168,7 +168,7 @@ def save_tensors_as_point_cloud(point_tensors, filename="output.ply"):
 
     # Write to a NPZ file
     # after you have numpy arrays verts (N,3) and rgb (N,3)
-    np.savez("./data/bridge_pointcloud_hull.npz", verts=verts, rgb=colors)
+    np.savez(file=filename, verts=verts, rgb=colors)
 
     # o3d.io.write_point_cloud(filename, pcd)
     print(f"Point cloud saved to '{filename}'.")
