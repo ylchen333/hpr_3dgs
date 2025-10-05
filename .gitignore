@@ -1,2 +1,3 @@
 # 
-*.pyc
+*.pycdata/*.obj
+data/*.zip
