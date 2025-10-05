@@ -1,6 +1,8 @@
 import torch
 from scipy.spatial import ConvexHull
 
+# hpr implementation from OG paper (see )
+
 def HPR(pts, viewpoint, gamma, use_linear_kernel):
     """
     Hidden Point Removal (HPR) Algorithm for determining the direct visibility of point sets.
