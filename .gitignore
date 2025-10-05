@@ -1,3 +1,5 @@
 # 
 *.pycdata/*.obj
 data/*.zip
+data/*.obj
+data/*.zip
