@@ -8,7 +8,8 @@ import numpy as np
 def visualize_hpr_result(
     original_path="data/bridge_pointcloud.npz",
     filtered_path="data/bridge_pointcloud_hull.npz",
-    scale=2.0
+    scale=2.0, 
+    debug=False
 ):
     # Load original point cloud
     original_npz = np.load(original_path)
@@ -17,8 +18,10 @@ def visualize_hpr_result(
     if original_colors.max() > 1.0:
         original_colors = original_colors / 255.0
     
-    print("[Debug] original_points:", original_points.shape, original_points.dtype)
-    print("[Debug] original_colors:", original_colors.shape, original_colors.dtype)
+
+    if debug:
+        print("[Debug] original_points:", original_points.shape, original_points.dtype)
+        print("[Debug] original_colors:", original_colors.shape, original_colors.dtype)
 
 
     # Create Open3D original point cloud

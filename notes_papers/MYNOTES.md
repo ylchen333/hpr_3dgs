@@ -34,3 +34,10 @@ To start examining this question in a more systematic way, the plan of action is
 To create this benchmark, you can use gpytoolbox (linked above) to load meshes, sample point clouds on them, and do ray-mesh intersections---the toolbox has functions for all these operations. You then apply this benchmarking procedure to various meshes from the casual-effects website (also linked above)."
 
 HPR implementation in open3d: [open3d doc](https://github.com/cmu-ci-lab/fast_dipole_sums/blob/2e8b763f610f5431a107757c433c554029490ad0/util/point_cloud_util.py#L14)
+
+
+
+convexhull on gpu
+only cpu rn
+dont need to make hpr differentiable, just need the visibility
+furthest point query(?)

@@ -74,28 +74,87 @@ def point_transformation(
 
     return verts_flipped, verts_translated
 
+import torch
+import numpy as np
+from scipy.spatial import ConvexHull
+
+
+def apply_inversion_kernel(points, gamma, kernel_type="mirror"):
+    """
+    Apply inversion or flipping kernel to point distances.
+
+    Args:
+        points (torch.Tensor): Nx3 tensor of points in camera coordinates
+        gamma (float): user parameter controlling kernel shape
+        kernel_type (str): one of
+            ['spherical_flip', 'mirror', 'exp_inversion', 'exp_natural']
+
+    Returns:
+        torch.Tensor: transformed (flipped) points
+    """
+    # Distance from camera (origin)
+    d = torch.norm(points, dim=1, keepdim=False)
+    direction = points / (d.unsqueeze(1) + 1e-8)
+
+    if kernel_type == "spherical_flip":
+        # Classic HPR inversion (flip across a sphere)
+        # R = 0.5 * gamma, reflection across sphere of radius R
+        R = 0.5 * gamma
+        transformed_d = (2 * R) - d
+        points_flipped = direction * transformed_d.unsqueeze(1)
+
+    elif kernel_type == "mirror":
+        # f_mirror(d) = gamma - d
+        transformed_d = gamma - d
+        points_flipped = direction * transformed_d.unsqueeze(1)
+
+    elif kernel_type == "exp_inversion":
+        # f_exponential(d) = d^γ  (γ < 0)
+        transformed_d = torch.pow(d, gamma)
+        points_flipped = direction * transformed_d.unsqueeze(1)
+
+    elif kernel_type == "exp_natural":
+        # f_natural(d) = e^{-γ d}  (γ > 0)
+        transformed_d = torch.exp(-gamma * d)
+        points_flipped = direction * transformed_d.unsqueeze(1)
+
+    else:
+        raise ValueError(f"Unknown kernel_type: {kernel_type}")
+
+    return points_flipped
 
 
 def hpr(
-    point_cloud_path="data/bridge_pointcloud.npz", output_path="./data/hull.ply", 
+    point_cloud_path="data/bridge_pointcloud.npz",
+    output_path="./data/hull.ply",
+    inversion_func="spherical_flip",
+    gamma=1.0,
     camera_coordinates=np.zeros(3),
     point_color=None,
-    background_color=np.zeros(3), image_size=256, device=None
+    background_color=np.zeros(3),
+    image_size=256,
+    device=None
 ):
-    '''
-    input a point cloud, make a point cloud with only visible points
-    '''
-    # transform the points s.t. C is the origin, where C is the camera
-    points_flipped, points_translated  = point_transformation(
-                    point_cloud_path="data/bridge_pointcloud.npz", output_path="images/bridge.jpg", 
-                    camera_coordinates=camera_coordinates,
-                    point_color=None,
-                    background_color=background_color, image_size=256, device=None)
+    """
+    Hidden Point Removal (HPR) algorithm supporting multiple inversion kernels.
 
-    # apply convexhull algo to the transformed points
-    # according to file:///home/lorie/Downloads/cgf70046.pdf, we can approximate the CH differently:
-    # compute a visibility indicator (where visible points maximize the projection in the direction d_i = {some math from the paper})
-    # 
+    Args:
+        inversion_func (str): One of
+            ['spherical_flip', 'mirror', 'exp_inversion', 'exp_natural']
+        gamma (float): Kernel parameter (behavior depends on kernel)
+    """
+    # Transform points so camera is at origin
+    points_flipped, points_translated = point_transformation(
+        point_cloud_path=point_cloud_path,
+        output_path="images/bridge.jpg",
+        camera_coordinates=camera_coordinates,
+        point_color=None,
+        background_color=background_color,
+        image_size=image_size,
+        device=device
+    )
+
+    # Flatten dimensions if needed
     if points_flipped.ndim == 3 and points_flipped.shape[0] == 1:
         points_flipped = points_flipped.squeeze(0)
         points_translated = points_translated.squeeze(0)
@@ -105,40 +164,33 @@ def hpr(
 
     mask = torch.isfinite(points_flipped).all(dim=1)
     points_flipped = points_flipped[mask]
-    points_translated = points_translated[mask]  # 👈 align filtered original points
+    points_translated = points_translated[mask]
+
     if points_flipped.shape[0] < 4:
         raise ValueError("Need at least 4 non-coplanar points for a 3D hull.")
-    
-    print("verts_raw shape:", points_translated.shape)
-    print("verts_flipped shape:", points_flipped.shape)
-    print("finite_mask sum:", mask.sum())
 
+    # 🌀 Apply inversion kernel (flip)
+    points_flipped = apply_inversion_kernel(points_flipped, gamma, kernel_type=inversion_func)
 
-    # Append camera origin to flipped only
+    # Add camera origin to flipped points
     aug = torch.zeros(1, 3, dtype=points_flipped.dtype)
     points_flipped_with_cam = torch.cat([points_flipped, aug], dim=0)
-    points_np = points_flipped_with_cam.cpu().numpy()
+    points_np = points_flipped_with_cam.numpy()
 
+    # Build convex hull
     hull = ConvexHull(points_np)
-    print("HPR hull volume:", hull.volume)
+    print(f"HPR ({inversion_func}) hull volume:", hull.volume)
     print("HPR hull area:", hull.area)
 
     idx = torch.from_numpy(hull.vertices).long()
-
-    # ⚠️ We need to exclude the camera point index (last point)
     idx = idx[idx < points_flipped.shape[0]]
 
-    # ✅ Select the correct points from original space
     hull_points_ogspace = points_translated[idx]
 
+    # Optional visualization/debug
     debug_indexing_with_open3d(point_cloud_path, idx)
 
-    #  project points back to original space
-    # hull_points_ogspace = points_og[idx] + torch.tensor(camera_coordinates, device=hull_points.device, dtype=hull_points.dtype)
-
-
     return hull_points_ogspace
-
 # ------------------------ main --------------------------------------------------------------------------
 
 
@@ -175,6 +227,7 @@ if __name__ == "__main__":
             camera_coord = compute_camera_outside_bounds("data/bridge_pointcloud.npz", scale=2.0)
             hpr_pc = hpr(point_cloud_path="data/bridge_pointcloud.npz",
                 output_path="./data/bridge_pointcloud_hull.npz",
+                inversion_func="spherical_flip",
                 point_color=(1, 0, 0), camera_coordinates=camera_coord
                 )
             
