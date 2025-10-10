@@ -22,6 +22,87 @@ DEBUG = False
 
 # ------------------------ hpr --------------------------------------------------------------------------
 
+# og author edit
+def HPR(pts, viewpoint, gamma, kernel_type="spherical_flip"):
+    """
+    Hidden Point Removal (HPR)
+    --------------------------------------------------------------------
+    Implements the algorithm from:
+        Katz, S., Tal, A., & Basri, R. (2007).
+        "Direct visibility of point sets."
+        ACM TOG 26(3), 24.
+
+    Supports multiple kernel types:
+        - 'spherical_flip' (default):   linear mirror kernel  p' = (2γ - r) * (p/r)
+        - 'mirror':                     simple linear kernel  p' = (γ - r) * (p/r)
+        - 'exp_inversion':              exponential inversion p' = (r^γ) * (p/r)
+        - 'exp_natural':                natural exponential   p' = exp(-γ * r) * (p/r)
+
+    Parameters
+    ----------
+    pts : torch.Tensor
+        Tensor of shape (3, N) or (1, 3, N) — point cloud coordinates.
+    viewpoint : torch.Tensor
+        Tensor of shape (3,) or (1, 3) — camera/viewpoint position.
+    gamma : float
+        Kernel radius parameter (typically ≥ max distance of points from viewpoint).
+    kernel_type : str
+        One of {'spherical_flip', 'mirror', 'exp_inversion', 'exp_natural'}.
+
+    Returns
+    -------
+    visible_points : torch.Tensor, shape (3, M)
+        Subset of visible points in the original coordinate frame.
+    visible_indices : np.ndarray, shape (M,)
+        Indices of visible points within the original set.
+    """
+    # ---------- Input normalization ----------
+    if pts.dim() == 2:
+        pts = pts.unsqueeze(0)  # (1, 3, N)
+    if viewpoint.dim() == 1:
+        viewpoint = viewpoint.unsqueeze(0)  # (1, 3)
+
+    B, D, N = pts.shape
+    assert D == 3, "Only 3D point clouds supported"
+
+    # Center the points around the viewpoint
+    centered_points = pts - viewpoint.unsqueeze(2)
+    directions = torch.nn.functional.normalize(centered_points, dim=1)
+    radii = torch.norm(centered_points, dim=1, keepdim=True)
+
+    # ---------- Apply kernel transformation ----------
+    if kernel_type == "spherical_flip":
+        trans_points = (2.0 * gamma - radii) * directions
+
+    elif kernel_type == "mirror":
+        trans_points = (gamma - radii) * directions
+
+    elif kernel_type == "exp_inversion":
+        # Usually gamma < 0
+        trans_points = torch.pow(radii + 1e-8, gamma) * directions
+
+    elif kernel_type == "exp_natural":
+        # Usually gamma > 0
+        trans_points = torch.exp(-gamma * radii) * directions
+
+    else:
+        raise ValueError(
+            f"Unknown kernel_type '{kernel_type}'. "
+            f"Choose from ['spherical_flip', 'mirror', 'exp_inversion', 'exp_natural']"
+        )
+
+    # ---------- Convex hull on transformed points ----------
+    trans_np = trans_points.squeeze(0).permute(1, 0).cpu().numpy()
+    hull = ConvexHull(trans_np)
+
+    # Visible vertices correspond to points on hull
+    visible_indices = np.unique(hull.vertices)
+    visible_points = pts[:, :, visible_indices]
+
+    return visible_points, visible_indices
+
+
+
 def compute_camera_outside_bounds(point_cloud_path, scale=1.5):
     """
     Returns a camera location outside the bounding box of the point cloud.
@@ -110,12 +191,12 @@ def apply_inversion_kernel(points, gamma, kernel_type="mirror"):
 
     elif kernel_type == "exp_inversion":
         # f_exponential(d) = d^γ  (γ < 0)
-        transformed_d = torch.pow(d, gamma)
+        transformed_d = torch.pow(d, gamma) # gamma < 0
         points_flipped = direction * transformed_d.unsqueeze(1)
 
     elif kernel_type == "exp_natural":
         # f_natural(d) = e^{-γ d}  (γ > 0)
-        transformed_d = torch.exp(-gamma * d)
+        transformed_d = torch.exp(-gamma * d)  # gamma > 0
         points_flipped = direction * transformed_d.unsqueeze(1)
 
     else:
@@ -187,8 +268,7 @@ def hpr(
 
     hull_points_ogspace = points_translated[idx]
 
-    # Optional visualization/debug
-    debug_indexing_with_open3d(point_cloud_path, idx)
+    debug_indexing_with_open3d(point_cloud_path, idx, show=DEBUG)
 
     return hull_points_ogspace
 # ------------------------ main --------------------------------------------------------------------------
@@ -252,7 +332,7 @@ if __name__ == "__main__":
             camera_coord = compute_camera_outside_bounds("data/bridge_pointcloud.npz", scale=2.0)
             device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
             pc_data = np.load("data/bridge_pointcloud.npz", mmap_mode='r')
-            verts_raw = torch.tensor(pc_data["verts"][::50], dtype=torch.float32, device=device)  # (N, 3)
+            verts_raw = torch.tensor(pc_data["verts"], dtype=torch.float32, device=device)
             print("verts_raw .size before reshape:", verts_raw.size())
 
             verts_batched = verts_raw.T.unsqueeze(0)  # (1, 3, N)

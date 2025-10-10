@@ -73,7 +73,7 @@ import open3d as o3d
 import numpy as np
 import torch
 
-def debug_indexing_with_open3d(point_cloud_path, hpr_indices):
+def debug_indexing_with_open3d(point_cloud_path, hpr_indices, show=True):
     """
     Visualize original point cloud and points selected by HPR indices.
 
@@ -97,8 +97,15 @@ def debug_indexing_with_open3d(point_cloud_path, hpr_indices):
     pcd_hpr.points = o3d.utility.Vector3dVector(verts[hpr_indices])
     pcd_hpr.colors = o3d.utility.Vector3dVector(np.tile([[1.0, 0.0, 0.0]], (len(hpr_indices), 1)))
 
-    # Show both
-    o3d.visualization.draw_geometries([pcd, pcd_hpr])
+    if show:
+        # draw_geometries blocks until the window is closed
+        o3d.visualization.draw_geometries([pcd, pcd_hpr])
+        # After the window closes, control returns here normally
+    else:
+        print("[debug_indexing_with_open3d] Visualization disabled (show=False).")
+
+    # ensure everything is cleaned up
+    del pcd, pcd_hpr
 
 # data = np.load("data/bridge_pointcloud.npz")
 # verts = data["verts"]

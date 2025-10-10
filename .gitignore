@@ -3,3 +3,5 @@
 data/*.zip
 data/*.obj
 data/*.zip
+__pycache__/
+*.pyc
