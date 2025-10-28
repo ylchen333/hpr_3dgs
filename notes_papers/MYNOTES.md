@@ -41,3 +41,9 @@ convexhull on gpu
 only cpu rn
 dont need to make hpr differentiable, just need the visibility
 furthest point query(?)
+
+
+visualize the points that that get set as visible from ray casting 
+
+^ get the gamma benchmark
+then worry about the point surface density and kurvature stuff that affects gamme
