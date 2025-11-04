@@ -52,21 +52,21 @@ then worry about the point surface density and kurvature stuff that affects gamm
 
 
 bunny:
-    Triangles: 144046
+    Triangles: 144,046
     Vertices: 72378
 
 buddha:
-    Triangles: 1087474
-    Vertices: 549333
+    Triangles: 1,087,474
+    Vertices: 549,333
 
 dragon:
-    Triangles: 871306
-    Vertices: 438929
+    Triangles: 871,306
+    Vertices: 438,929
 
 erato:
-    Triangles: 412.7k
-    Vertices: 207.3k
+    Triangles: 412,700
+    Vertices: 207,300
 
 hairball:
-    Triangles: 2880000
-    Vertices: 1441098
+    Triangles: 2,880,000 
+    Vertices: 1,441,098
