@@ -25,7 +25,7 @@ import numpy as np
 import os
 import tempfile
 
-from gamma_visualize_utils import sample_points_from_mesh, compute_visibility, match_indices, visualize_visibility_comparison, evaluate_hpr_with
+from gamma_visualize_utils import sample_points_from_mesh, compute_visibility, match_indices, visualize_visibility_comparison, evaluate_hpr_with, HPR_Param
 
 
 
@@ -63,15 +63,20 @@ def refine_R_via_visibility(points, camera_origin, kernel, step_factor=0.9, iter
     normals = np.asarray(pcd.normals)
 
     k = estimate_curvature(points, normals, areas, n_neighbors=30)
-    R_init, _ = choose_global_R(points, camera_origin, k, strategy="p95", safety=1.15)
+    R_init, R_per_point = choose_global_R(points, camera_origin, k, strategy="p95", safety=1.15)
     print(f"[Refine R] Initial R from curvature: {R_init:.4f}")
+
+    # --- For exp kernels: skip R refinement entirely ---
+    if kernel in ("exp_inversion", "exp_natural"):
+        print(f"[Skip refine_R_via_visibility] Kernel '{kernel}' is param-based; skipping R refinement.")
+        # Normalize based on R_per_point for consistent scaling
+        R_min, R_max = np.percentile(R_per_point, [10, 90])
+        R_norm = np.clip((R_init - R_min) / (R_max - R_min + 1e-8), 0.0, 1.0)
+        return R_norm
 
     # Define opposite camera position
     cam_center = np.mean(points, axis=0)
     cam_opposite = cam_center - (camera_origin - cam_center)
-
-    best_R = R_init
-    best_score = -np.inf
 
     pts_t = torch.tensor(points.T, dtype=torch.float32)
     cam_t = torch.tensor(camera_origin, dtype=torch.float32)
@@ -81,13 +86,14 @@ def refine_R_via_visibility(points, camera_origin, kernel, step_factor=0.9, iter
     R_min = R_init * 1e-2
     R_max = R_init * 2.0
     R_values = np.logspace(np.log10(R_min), np.log10(R_max), samples)
-
     best_R, best_score = R_init, -np.inf
     scores = []
 
     for R in R_values:
-        vis_front, idx_front = HPR(pts_t, cam_t, R, kernel_type=kernel)
-        vis_back,  idx_back  = HPR(pts_t, cam_t_opp, R, kernel_type=kernel)
+        useLinear = False
+        if kernel in ("spherical_flip", "mirror"): useLinear = True
+        vis_front, idx_front = HPR_Param(pts_t, cam_t, R, use_linear=useLinear)
+        vis_back,  idx_back  = HPR_Param(pts_t, cam_t_opp, R, use_linear=useLinear)
         score = len(set(idx_front.tolist()) ^ set(idx_back.tolist()))
         scores.append(score)
 
@@ -97,7 +103,7 @@ def refine_R_via_visibility(points, camera_origin, kernel, step_factor=0.9, iter
 
     return best_R
 
-
+# TODO: understand and clean up curvature estimation
 def estimate_curvature(points, normals, areas, n_neighbors=30):
     """
     Estimate mean curvature magnitude using local normal variation,

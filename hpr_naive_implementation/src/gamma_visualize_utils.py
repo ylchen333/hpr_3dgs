@@ -438,6 +438,66 @@ def visualize_visibility_comparison(points, visibility_gt, hpr_visible_pts, came
     # --- Visualize everything ---
     o3d.visualization.draw_geometries(geometries, window_name="HPR vs GT Visibility")
 
+
+
+# ------------------------- HPR benchmark --------------------------------------------------------------------------
+# For a given mesh and sampled points, run HPR with different gamma values and compute FP/FN against groundtruth visibility.
+# use yannis's hpr implementation
+def HPR_Param(points, view, param, use_linear=False):
+    """
+    Hidden Point Removal (HPR) operator.
+    Reimplementation of Yannis's Matlab implementation of the HPR operator in Python.
+
+    Args:
+        points (np.ndarray): Nx3 array of 3D points.
+        view (np.ndarray): 3-element camera/viewpoint position.
+        param (float): Inversion parameter (0 < param < 1).
+        use_linear (bool): If True, use linear inversion; otherwise exponential inversion.
+
+    Returns:
+        visible_idx (np.ndarray): Indices of visible points.
+    """
+
+    # --- Input validation ---
+    if points.shape[0] == 3 and points.shape[1] != 3:
+        points = points.T
+
+    # Convert to NumPy for convex hull
+    points = points.detach().cpu().numpy()
+    view = view.detach().cpu().numpy().reshape(1, 3)
+
+    num_pts, dim = points.shape
+
+    # --- Move points so camera is at the origin ---
+    shifted = points - view  # Nx3
+    normp = np.linalg.norm(shifted, axis=1)
+    directions = shifted / normp[:, None]  # normalized direction vectors
+
+    # --- Inversion step ---
+    if use_linear:
+        # Linear inversion: R = (1/param)*max(normp)
+        R = (1.0 / param) * np.max(normp)
+        P = (R - normp)[:, None] * directions
+    else:
+        # Exponential inversion: points scaled by ||p||^(-param)
+        P = (normp ** (-param))[:, None] * directions
+
+    # --- Form augmented set with origin ---
+    augmented_points = np.vstack([P, np.zeros((1, dim))])
+
+    # --- Compute convex hull ---
+    try:
+        hull = ConvexHull(augmented_points)
+    except Exception as e:
+        raise RuntimeError(f"HPR convex hull failed: {e}")
+
+    visible_idx = np.unique(hull.vertices)
+    visible_idx = visible_idx[visible_idx < num_pts]  # remove the origin index
+    visible_pts = torch.tensor(points[visible_idx].T, dtype=torch.float32)
+
+    return visible_pts, visible_idx
+
+
 def benchmark_HPR_visibility(points, camera_origin, kernel, gamma_values, R_pred, R_opt, mesh_path, outdir):
     """
     Run HPR benchmark on given points and mesh for a given kernel.
@@ -449,7 +509,9 @@ def benchmark_HPR_visibility(points, camera_origin, kernel, gamma_values, R_pred
     for gamma in gamma_values:
         pts_t = torch.tensor(points.T, dtype=torch.float32)
         cam_t = torch.tensor(camera_origin, dtype=torch.float32)
-        visible_pts_t, visible_idx = HPR(pts_t, cam_t, gamma, kernel_type=kernel)
+        useLinear = False
+        if kernel in ("spherical_flip", "mirror"): useLinear = True
+        visible_pts_t, visible_idx = HPR_Param(pts_t, cam_t, gamma, use_linear=useLinear)
         hull_pts = visible_pts_t.squeeze(0).T.cpu().numpy()
 
         pred_idx, _ = match_indices(points, hull_pts, tolerance=1e-3)
@@ -462,35 +524,80 @@ def benchmark_HPR_visibility(points, camera_origin, kernel, gamma_values, R_pred
         total_err = (fp + fn) / len(points) * 100
         results.append((gamma, total_err, fp / len(points) * 100, fn / len(points) * 100))
 
-    # --- Save CSV and plot ---
+    
+      # --- Save CSV and plot ---
     import pandas as pd
     import matplotlib.pyplot as plt
     df = pd.DataFrame(results, columns=["gamma", "TOTAL_rate", "FP_rate", "FN_rate"])
-    df.to_csv(os.path.join(outdir, f"benchmark_{kernel}.csv"), index=False)
+    csv_path = os.path.join(outdir, f"benchmark_{kernel}.csv")
+    df.to_csv(csv_path, index=False)
+    print(f"[Saved CSV] {csv_path}")
 
-    # Plot
-    fig, ax = plt.subplots(figsize=(6,4))
+    # --- Plot ---
+    fig, ax = plt.subplots(figsize=(6, 4))
+
+    # Use log scale for gamma axis since sampling is log-spaced
     ax.set_xscale("log")
+
     ax.plot(df["gamma"], df["TOTAL_rate"], color="royalblue", marker="o", markersize=3, linewidth=2, label="Total error")
     ax.plot(df["gamma"], df["FP_rate"], color="green", marker="o", markersize=3, linewidth=1.5, label="False positive")
     ax.plot(df["gamma"], df["FN_rate"], color="red", marker="o", markersize=3, linewidth=1.5, label="False negative")
-    ax.axvline(R_pred, color="orange", linestyle="--", linewidth=2, label=f"Predicted R ≈ {R_pred:.2f}")
-    ax.axvline(R_opt, color="magenta", linestyle="--", linewidth=2, label=f"Optimal R ≈ {R_opt:.2f}")
 
-    # Annotate minimum
+    # Highlight minimum total error
     min_row = df.loc[df["TOTAL_rate"].idxmin()]
-    ax.scatter(min_row["gamma"], min_row["TOTAL_rate"], color="gold", s=40, edgecolor="black", zorder=5)
-    ax.annotate(f"Min error = {min_row['TOTAL_rate']:.2f}%\nγ = {min_row['gamma']:.4f}",
-                xy=(min_row["gamma"], min_row["TOTAL_rate"]),
-                xycoords='data', xytext=(25,25), textcoords='offset points',
-                arrowprops=dict(arrowstyle="->", color="black"), fontsize=9,
-                bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.8))
+    ax.scatter(min_row["gamma"], min_row["TOTAL_rate"], color="gold", s=50, edgecolor="black", zorder=5)
+
+    # Choose offset direction dynamically based on location
+    x_offset = 25 if min_row["gamma"] < 0.1 else -100
+
+    ax.annotate(
+        f"Min error = {min_row['TOTAL_rate']:.2f}%\nγ = {min_row['gamma']:.2e}",
+        xy=(min_row["gamma"], min_row["TOTAL_rate"]),
+        xycoords="data",
+        xytext=(x_offset, 25),
+        textcoords="offset points",
+        arrowprops=dict(arrowstyle="->", color="black", lw=1),
+        fontsize=9,
+        bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.8),
+    )
 
     ax.set_title(f"HPR Benchmark — {kernel}")
-    ax.set_xlabel("Log(γ)")
+    ax.set_xlabel("γ (log-spaced, 1e-7 → 1)")
     ax.set_ylabel("Error rate (%)")
     ax.legend()
+    ax.grid(True, which="both", linestyle="--", alpha=0.6)
     plt.tight_layout()
-    plt.savefig(os.path.join(outdir, f"benchmark_{kernel}.png"))
+
+    img_path = os.path.join(outdir, f"benchmark_{kernel}.png")
+    plt.savefig(img_path, dpi=300)
     plt.close(fig)
+    print(f"[Saved plot] {img_path}")
+    # df = pd.DataFrame(results, columns=["gamma", "TOTAL_rate", "FP_rate", "FN_rate"])
+    # df.to_csv(os.path.join(outdir, f"benchmark_{kernel}.csv"), index=False)
+
+    # # Plot
+    # fig, ax = plt.subplots(figsize=(6,4))
+    # ax.set_xscale("linear")
+    # ax.plot(df["gamma"], df["TOTAL_rate"], color="royalblue", marker="o", markersize=3, linewidth=2, label="Total error")
+    # ax.plot(df["gamma"], df["FP_rate"], color="green", marker="o", markersize=3, linewidth=1.5, label="False positive")
+    # ax.plot(df["gamma"], df["FN_rate"], color="red", marker="o", markersize=3, linewidth=1.5, label="False negative")
+    # # ax.axvline(R_pred, color="orange", linestyle="--", linewidth=2, label=f"Predicted R ≈ {R_pred:.2f}")
+    # # ax.axvline(R_opt, color="magenta", linestyle="--", linewidth=2, label=f"Optimal R ≈ {R_opt:.2f}")
+
+    # # Annotate minimum
+    # min_row = df.loc[df["TOTAL_rate"].idxmin()]
+    # ax.scatter(min_row["gamma"], min_row["TOTAL_rate"], color="gold", s=40, edgecolor="black", zorder=5)
+    # ax.annotate(f"Min error = {min_row['TOTAL_rate']:.2f}%\nγ = {min_row['gamma']:.4f}",
+    #             xy=(min_row["gamma"], min_row["TOTAL_rate"]),
+    #             xycoords='data', xytext=(25,25), textcoords='offset points',
+    #             arrowprops=dict(arrowstyle="->", color="black"), fontsize=9,
+    #             bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.8))
+
+    # ax.set_title(f"HPR Benchmark — {kernel}")
+    # ax.set_xlabel("param (log-spaced gamma 1e-7 to 1)")
+    # ax.set_ylabel("Error rate (%)")
+    # ax.legend()
+    # plt.tight_layout()
+    # plt.savefig(os.path.join(outdir, f"benchmark_{kernel}.png"))
+    # plt.close(fig)
 

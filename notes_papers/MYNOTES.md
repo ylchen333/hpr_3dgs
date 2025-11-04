@@ -47,3 +47,26 @@ visualize the points that that get set as visible from ray casting
 
 ^ get the gamma benchmark
 then worry about the point surface density and kurvature stuff that affects gamme
+
+
+
+
+bunny:
+    Triangles: 144046
+    Vertices: 72378
+
+buddha:
+    Triangles: 1087474
+    Vertices: 549333
+
+dragon:
+    Triangles: 871306
+    Vertices: 438929
+
+erato:
+    Triangles: 412.7k
+    Vertices: 207.3k
+
+hairball:
+    Triangles: 2880000
+    Vertices: 1441098
