@@ -18,7 +18,7 @@ meshes = [
     "../../data/hairball.obj",
 ]
 DENSITY = 10000  # Fixed density for distance benchmark
-distances = [0.5, 1.0, 2.0, 5.0]  # e.g. half, equal, 2×, 5× the mesh diagonal
+distances = [0.5, 1.0, 2.0, 5.0, 10.0, 20.0]  # e.g. half, equal, 2×, 5× the mesh diagonal
 kernels = ["spherical_flip", "exp_inversion"]
 out_root = "../data/yannis_hpr/benchmarks_distance_relative"
 

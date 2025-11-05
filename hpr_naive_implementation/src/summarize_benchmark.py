@@ -143,149 +143,149 @@ LINESTYLES = {
     "linear_flip": "dashdot"
 }
 
-# -----------------------------------------------------------
-# Plot 1 — Minimum HPR Error vs Camera Distance
-# -----------------------------------------------------------
-plt.figure(figsize=(8, 6))
-for kernel in df_dist["kernel"].unique():
-    subset = df_dist[df_dist["kernel"] == kernel]
-    for mesh in subset["mesh"].unique():
-        msub = subset[subset["mesh"] == mesh].sort_values("distance")
-        plt.plot(msub["distance"], msub["min_error"], marker="o", linewidth=2, color=MESH_COLORS.get(mesh, "black"), linestyle=LINESTYLES.get(kernel, "solid"), label=f"{mesh}-{kernel}")
+# # -----------------------------------------------------------
+# # Plot 1 — Minimum HPR Error vs Camera Distance
+# # -----------------------------------------------------------
+# plt.figure(figsize=(8, 6))
+# for kernel in df_dist["kernel"].unique():
+#     subset = df_dist[df_dist["kernel"] == kernel]
+#     for mesh in subset["mesh"].unique():
+#         msub = subset[subset["mesh"] == mesh].sort_values("distance")
+#         plt.plot(msub["distance"], msub["min_error"], marker="o", linewidth=2, color=MESH_COLORS.get(mesh, "black"), linestyle=LINESTYLES.get(kernel, "solid"), label=f"{mesh}-{kernel}")
 
-plt.xscale("log")
-plt.title("Minimum HPR Error vs Camera Distance")
-plt.xlabel("Camera Distance (× mesh size)")
-plt.ylabel("Minimum Total Error (%)")
-plt.grid(True, which="both", linestyle="--", alpha=0.5)
-plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
-plt.tight_layout()
+# plt.xscale("log")
+# plt.title("Minimum HPR Error vs Camera Distance")
+# plt.xlabel("Camera Distance (× mesh size)")
+# plt.ylabel("Minimum Total Error (%)")
+# plt.grid(True, which="both", linestyle="--", alpha=0.5)
+# plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
+# plt.tight_layout()
 
-dist_plot_path = os.path.join(OUT_ROOT, "summary_min_error_vs_distance.png")
-plt.savefig(dist_plot_path, dpi=300)
-plt.close()
-print(f"✅ Saved distance summary plot → {dist_plot_path}")
-
-
-# -----------------------------------------------------------
-# Plot 2 — Minimum HPR Error vs Sampling Density
-# -----------------------------------------------------------
-plt.figure(figsize=(8, 6))
-for kernel in df_dens["kernel"].unique():
-    subset = df_dens[df_dens["kernel"] == kernel]
-    for mesh in subset["mesh"].unique():
-        msub = subset[subset["mesh"] == mesh].sort_values("density")
-        plt.plot(msub["density"], msub["min_error"], marker="s", linewidth=2, color=MESH_COLORS.get(mesh, "black"), linestyle=LINESTYLES.get(kernel, "solid"), label=f"{mesh}-{kernel}")
-
-plt.xscale("log")
-plt.title("Minimum HPR Error vs Sampling Density")
-plt.xlabel("Number of Points")
-plt.ylabel("Minimum Total Error (%)")
-plt.grid(True, which="both", linestyle="--", alpha=0.5)
-plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
-plt.tight_layout()
-
-dens_plot_path = os.path.join(OUT_ROOT, "summary_min_error_vs_density.png")
-plt.savefig(dens_plot_path, dpi=300)
-plt.close()
-print(f"✅ Saved density summary plot → {dens_plot_path}")
-
-# -----------------------------------------------------------
-# Plot 3 — Minimum HPR Error vs Relative Camera Distance
-# -----------------------------------------------------------
-plt.figure(figsize=(8, 6))
-for kernel in df_rel_dist["kernel"].unique():
-    subset = df_rel_dist[df_rel_dist["kernel"] == kernel]
-    for mesh in subset["mesh"].unique():
-        msub = subset[subset["mesh"] == mesh].sort_values("relative_distance")
-        plt.plot(msub["relative_distance"], msub["min_error"], marker="o", linewidth=2, color=MESH_COLORS.get(mesh, "black"), linestyle=LINESTYLES.get(kernel, "solid"), label=f"{mesh}-{kernel}")
-
-plt.xscale("linear")
-plt.title("Minimum HPR Error vs Relative Camera Distance")
-plt.xlabel("Relative Camera Distance ")
-plt.ylabel("Minimum Total Error (%)")
-plt.grid(True, which="both", linestyle="--", alpha=0.5)
-plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
-plt.tight_layout()
-
-rel_dist_plot_path = os.path.join(OUT_ROOT, "summary_min_error_vs_rel_distance.png")
-plt.savefig(rel_dist_plot_path, dpi=300)
-plt.close()
-print(f"✅ Saved distance summary plot → {rel_dist_plot_path}")
+# dist_plot_path = os.path.join(OUT_ROOT, "summary_min_error_vs_distance.png")
+# plt.savefig(dist_plot_path, dpi=300)
+# plt.close()
+# print(f"✅ Saved distance summary plot → {dist_plot_path}")
 
 
-# -----------------------------------------------------------
-# Plot 1 — Gamma at Minimum HPR Error vs Camera Distance
-# -----------------------------------------------------------
-plt.figure(figsize=(8, 6))
-for kernel in df_dist["kernel"].unique():
-    subset = df_dist[df_dist["kernel"] == kernel]
-    for mesh in subset["mesh"].unique():
-        msub = subset[subset["mesh"] == mesh].sort_values("distance")
-        plt.plot(msub["distance"], msub["gamma_at_min"], marker="o", linewidth=2, color=MESH_COLORS.get(mesh, "black"), linestyle=LINESTYLES.get(kernel, "solid"), label=f"{mesh}-{kernel}")
+# # -----------------------------------------------------------
+# # Plot 2 — Minimum HPR Error vs Sampling Density
+# # -----------------------------------------------------------
+# plt.figure(figsize=(8, 6))
+# for kernel in df_dens["kernel"].unique():
+#     subset = df_dens[df_dens["kernel"] == kernel]
+#     for mesh in subset["mesh"].unique():
+#         msub = subset[subset["mesh"] == mesh].sort_values("density")
+#         plt.plot(msub["density"], msub["min_error"], marker="s", linewidth=2, color=MESH_COLORS.get(mesh, "black"), linestyle=LINESTYLES.get(kernel, "solid"), label=f"{mesh}-{kernel}")
 
-plt.xscale("log")
-plt.yscale("log")
-plt.title("Gamma at Minimum HPR Error vs Camera Distance")
-plt.xlabel("Camera Distance (× mesh size)")
-plt.ylabel("Gamma at Minimum Total Error (0-1)")
-plt.grid(True, which="both", linestyle="--", alpha=0.5)
-plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
-plt.tight_layout()
+# plt.xscale("log")
+# plt.title("Minimum HPR Error vs Sampling Density")
+# plt.xlabel("Number of Points")
+# plt.ylabel("Minimum Total Error (%)")
+# plt.grid(True, which="both", linestyle="--", alpha=0.5)
+# plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
+# plt.tight_layout()
 
-dist_plot_path = os.path.join(OUT_ROOT, "summary_gamma_at_min_error_vs_distance.png")
-plt.savefig(dist_plot_path, dpi=300)
-plt.close()
-print(f"✅ Saved distance summary plot → {dist_plot_path}")
+# dens_plot_path = os.path.join(OUT_ROOT, "summary_min_error_vs_density.png")
+# plt.savefig(dens_plot_path, dpi=300)
+# plt.close()
+# print(f"✅ Saved density summary plot → {dens_plot_path}")
+
+# # -----------------------------------------------------------
+# # Plot 3 — Minimum HPR Error vs Relative Camera Distance
+# # -----------------------------------------------------------
+# plt.figure(figsize=(8, 6))
+# for kernel in df_rel_dist["kernel"].unique():
+#     subset = df_rel_dist[df_rel_dist["kernel"] == kernel]
+#     for mesh in subset["mesh"].unique():
+#         msub = subset[subset["mesh"] == mesh].sort_values("relative_distance")
+#         plt.plot(msub["relative_distance"], msub["min_error"], marker="o", linewidth=2, color=MESH_COLORS.get(mesh, "black"), linestyle=LINESTYLES.get(kernel, "solid"), label=f"{mesh}-{kernel}")
+
+# plt.xscale("linear")
+# plt.title("Minimum HPR Error vs Relative Camera Distance")
+# plt.xlabel("Relative Camera Distance ")
+# plt.ylabel("Minimum Total Error (%)")
+# plt.grid(True, which="both", linestyle="--", alpha=0.5)
+# plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
+# plt.tight_layout()
+
+# rel_dist_plot_path = os.path.join(OUT_ROOT, "summary_min_error_vs_rel_distance.png")
+# plt.savefig(rel_dist_plot_path, dpi=300)
+# plt.close()
+# print(f"✅ Saved distance summary plot → {rel_dist_plot_path}")
 
 
-# -----------------------------------------------------------
-# Plot 2 — Gamma at Minimum HPR Error vs Sampling Density
-# -----------------------------------------------------------
-plt.figure(figsize=(8, 6))
-for kernel in df_dens["kernel"].unique():
-    subset = df_dens[df_dens["kernel"] == kernel]
-    for mesh in subset["mesh"].unique():
-        msub = subset[subset["mesh"] == mesh].sort_values("density")
-        plt.plot(msub["density"], msub["gamma_at_min"], marker="s", linewidth=2, color=MESH_COLORS.get(mesh, "black"), linestyle=LINESTYLES.get(kernel, "solid"), label=f"{mesh}-{kernel}")
+# # -----------------------------------------------------------
+# # Plot 1 — Gamma at Minimum HPR Error vs Camera Distance
+# # -----------------------------------------------------------
+# plt.figure(figsize=(8, 6))
+# for kernel in df_dist["kernel"].unique():
+#     subset = df_dist[df_dist["kernel"] == kernel]
+#     for mesh in subset["mesh"].unique():
+#         msub = subset[subset["mesh"] == mesh].sort_values("distance")
+#         plt.plot(msub["distance"], msub["gamma_at_min"], marker="o", linewidth=2, color=MESH_COLORS.get(mesh, "black"), linestyle=LINESTYLES.get(kernel, "solid"), label=f"{mesh}-{kernel}")
 
-plt.xscale("log")
-plt.yscale("log")
-plt.title("Gamma at Minimum HPR Error vs Sampling Density")
-plt.xlabel("Number of Points")
-plt.ylabel("Gamma at Minimum Total Error (0-1)")
-plt.grid(True, which="both", linestyle="--", alpha=0.5)
-plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
-plt.tight_layout()
+# plt.xscale("log")
+# plt.yscale("log")
+# plt.title("Gamma at Minimum HPR Error vs Camera Distance")
+# plt.xlabel("Camera Distance (× mesh size)")
+# plt.ylabel("Gamma at Minimum Total Error (0-1)")
+# plt.grid(True, which="both", linestyle="--", alpha=0.5)
+# plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
+# plt.tight_layout()
 
-dens_plot_path = os.path.join(OUT_ROOT, "summary_gamma_at_min_error_vs_density.png")
-plt.savefig(dens_plot_path, dpi=300)
-plt.close()
-print(f"✅ Saved gamma density summary plot → {dens_plot_path}")
+# dist_plot_path = os.path.join(OUT_ROOT, "summary_gamma_at_min_error_vs_distance.png")
+# plt.savefig(dist_plot_path, dpi=300)
+# plt.close()
+# print(f"✅ Saved distance summary plot → {dist_plot_path}")
 
-# -----------------------------------------------------------
-# Plot 3 — Gamma at Minimum HPR Error vs Relative Camera Distance
-# -----------------------------------------------------------
-plt.figure(figsize=(8, 6))
-for kernel in df_rel_dist["kernel"].unique():
-    subset = df_rel_dist[df_rel_dist["kernel"] == kernel]
-    for mesh in subset["mesh"].unique():
-        msub = subset[subset["mesh"] == mesh].sort_values("relative_distance")
-        plt.plot(msub["relative_distance"], msub["gamma_at_min"], marker="o", linewidth=2, color=MESH_COLORS.get(mesh, "black"), linestyle=LINESTYLES.get(kernel, "solid"), label=f"{mesh}-{kernel}")
 
-plt.xscale("linear")
-plt.yscale("log")
-plt.title("Gamma at Minimum HPR Error vs Relative Camera Distance")
-plt.xlabel("Relative Camera Distance ")
-plt.ylabel("Gamma at Minimum Total Error (%)")
-plt.grid(True, which="both", linestyle="--", alpha=0.5)
-plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
-plt.tight_layout()
+# # -----------------------------------------------------------
+# # Plot 2 — Gamma at Minimum HPR Error vs Sampling Density
+# # -----------------------------------------------------------
+# plt.figure(figsize=(8, 6))
+# for kernel in df_dens["kernel"].unique():
+#     subset = df_dens[df_dens["kernel"] == kernel]
+#     for mesh in subset["mesh"].unique():
+#         msub = subset[subset["mesh"] == mesh].sort_values("density")
+#         plt.plot(msub["density"], msub["gamma_at_min"], marker="s", linewidth=2, color=MESH_COLORS.get(mesh, "black"), linestyle=LINESTYLES.get(kernel, "solid"), label=f"{mesh}-{kernel}")
 
-rel_dist_plot_path = os.path.join(OUT_ROOT, "summary_gamma_at_min_vs_rel_distance.png")
-plt.savefig(rel_dist_plot_path, dpi=300)
-plt.close()
-print(f"✅ Saved gamma distance summary plot → {rel_dist_plot_path}")
+# plt.xscale("log")
+# plt.yscale("log")
+# plt.title("Gamma at Minimum HPR Error vs Sampling Density")
+# plt.xlabel("Number of Points")
+# plt.ylabel("Gamma at Minimum Total Error (0-1)")
+# plt.grid(True, which="both", linestyle="--", alpha=0.5)
+# plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
+# plt.tight_layout()
+
+# dens_plot_path = os.path.join(OUT_ROOT, "summary_gamma_at_min_error_vs_density.png")
+# plt.savefig(dens_plot_path, dpi=300)
+# plt.close()
+# print(f"✅ Saved gamma density summary plot → {dens_plot_path}")
+
+# # -----------------------------------------------------------
+# # Plot 3 — Gamma at Minimum HPR Error vs Relative Camera Distance
+# # -----------------------------------------------------------
+# plt.figure(figsize=(8, 6))
+# for kernel in df_rel_dist["kernel"].unique():
+#     subset = df_rel_dist[df_rel_dist["kernel"] == kernel]
+#     for mesh in subset["mesh"].unique():
+#         msub = subset[subset["mesh"] == mesh].sort_values("relative_distance")
+#         plt.plot(msub["relative_distance"], msub["gamma_at_min"], marker="o", linewidth=2, color=MESH_COLORS.get(mesh, "black"), linestyle=LINESTYLES.get(kernel, "solid"), label=f"{mesh}-{kernel}")
+
+# plt.xscale("linear")
+# plt.yscale("log")
+# plt.title("Gamma at Minimum HPR Error vs Relative Camera Distance")
+# plt.xlabel("Relative Camera Distance ")
+# plt.ylabel("Gamma at Minimum Total Error (%)")
+# plt.grid(True, which="both", linestyle="--", alpha=0.5)
+# plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
+# plt.tight_layout()
+
+# rel_dist_plot_path = os.path.join(OUT_ROOT, "summary_gamma_at_min_vs_rel_distance.png")
+# plt.savefig(rel_dist_plot_path, dpi=300)
+# plt.close()
+# print(f"✅ Saved gamma distance summary plot → {rel_dist_plot_path}")
 
 
 # -----------------------------------------------------------
@@ -363,14 +363,127 @@ def plot_combined(df, variable, out_name, value_field="min_error"):
 # -----------------------------------------------------------
 # Generate the six summary plots (error + γ@min for each variable)
 # -----------------------------------------------------------
-if not df_dist.empty:
-    plot_combined(df_dist, "distance", "summary_min_error_vs_distance_combined.png", value_field="min_error")
-    plot_combined(df_dist, "distance", "summary_gamma_at_min_error_vs_distance_combined.png", value_field="gamma_at_min")
+# if not df_dist.empty:
+#     plot_combined(df_dist, "distance", "summary_min_error_vs_distance_combined.png", value_field="min_error")
+#     plot_combined(df_dist, "distance", "summary_gamma_at_min_error_vs_distance_combined.png", value_field="gamma_at_min")
 
-if not df_dens.empty:
-    plot_combined(df_dens, "density", "summary_min_error_vs_density_combined.png", value_field="min_error")
-    plot_combined(df_dens, "density", "summary_gamma_at_min_error_vs_density_combined.png", value_field="gamma_at_min")
+# if not df_dens.empty:
+#     plot_combined(df_dens, "density", "summary_min_error_vs_density_combined.png", value_field="min_error")
+#     plot_combined(df_dens, "density", "summary_gamma_at_min_error_vs_density_combined.png", value_field="gamma_at_min")
 
-if not df_rel_dist.empty:
-    plot_combined(df_rel_dist, "relative_distance", "summary_min_error_vs_rel_distance_combined.png", value_field="min_error")
-    plot_combined(df_rel_dist, "relative_distance", "summary_gamma_at_min_error_vs_rel_distance_combined.png", value_field="gamma_at_min")
+# if not df_rel_dist.empty:
+#     plot_combined(df_rel_dist, "relative_distance", "summary_min_error_vs_rel_distance_combined.png", value_field="min_error")
+#     plot_combined(df_rel_dist, "relative_distance", "summary_gamma_at_min_error_vs_rel_distance_combined.png", value_field="gamma_at_min")
+
+
+# -----------------------------------------------------------
+# Plot error-vs-gamma curves for each density and distance
+# -----------------------------------------------------------
+import os
+import re
+import pandas as pd
+import matplotlib.pyplot as plt
+
+def collect_gamma_curves(results_dir, variable_name, target_meshes=None):
+    """
+    Walk through the benchmark directory (density or distance)
+    and collect gamma vs TOTAL_rate curves.
+    Returns DataFrame with columns:
+      mesh, kernel, variable (density/distance), gamma, TOTAL_rate, FP_rate, FN_rate
+    """
+    rows = []
+    folders = sorted([f for f in os.listdir(results_dir)
+                      if os.path.isdir(os.path.join(results_dir, f))])
+    for folder in folders:
+        mesh_name, rel_distance, abs_distance, kernel = parse_folder_name(folder)
+        if mesh_name is None or kernel is None:
+            continue
+        if target_meshes and mesh_name.lower() not in target_meshes:
+            continue
+
+        if variable_name == "density":
+            variable_value = abs_distance or rel_distance
+        elif variable_name == "distance":
+            variable_value = abs_distance
+        else:
+            continue
+
+        if variable_value is None:
+            continue
+
+        folder_path = os.path.join(results_dir, folder)
+        csv_path = os.path.join(folder_path, f"benchmark_{kernel}.csv")
+        if not os.path.exists(csv_path):
+            continue
+
+        df = pd.read_csv(csv_path)
+        df.columns = [c.strip() for c in df.columns]
+        if not {"gamma", "TOTAL_rate"} <= set(df.columns):
+            continue
+
+        df = df[["gamma", "TOTAL_rate"]].copy()
+        df["mesh"] = mesh_name.lower()
+        df["kernel"] = kernel
+        df[variable_name] = float(variable_value)
+        rows.append(df)
+
+    if not rows:
+        return pd.DataFrame(columns=["mesh","kernel",variable_name,"gamma","TOTAL_rate"])
+    return pd.concat(rows, ignore_index=True)
+
+def plot_error_vs_gamma_grid(df, variable_name, out_name_prefix):
+    """
+    For each (mesh, kernel), plot a grid of error-vs-gamma curves,
+    one per variable value (density or distance).
+    """
+    if df.empty:
+        print(f"⚠️ No data to plot for {variable_name}.")
+        return
+
+    for (mesh, kernel), g in df.groupby(["mesh","kernel"]):
+        g = g.sort_values(variable_name)
+        unique_vals = sorted(g[variable_name].unique())
+        nvals = len(unique_vals)
+
+        plt.figure(figsize=(10, 6))
+        for val in unique_vals:
+            sub = g[g[variable_name] == val].sort_values("gamma")
+            label = f"{variable_name}={val:g}"
+            plt.plot(
+                sub["gamma"],
+                sub["TOTAL_rate"],
+                linewidth=2,
+                marker="o",
+                color=MESH_COLORS.get(mesh, "black"),
+                linestyle=LINESTYLES.get(kernel, "solid"),
+                alpha=0.7,
+                label=label
+            )
+
+        plt.xscale("log")
+        plt.xlabel("Gamma (log scale)")
+        plt.ylabel("Total Error Rate")
+        plt.title(f"{mesh.title()} — {kernel}\nError vs Gamma for different {variable_name}")
+        plt.grid(True, which="both", linestyle="--", alpha=0.4)
+        plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize=9)
+        plt.tight_layout()
+
+        out_path = os.path.join(
+            OUT_ROOT, f"{out_name_prefix}_{mesh}_{kernel}.png"
+        )
+        plt.savefig(out_path, dpi=300)
+        plt.close()
+        print(f"✅ Saved {variable_name} gamma curve grid → {out_path}")
+
+# -----------------------------------------------------------
+# Run for all meshes and kernels across density & distance
+# -----------------------------------------------------------
+TARGET_MESHES = ["buddha", "erato", "dragon", "bunny", "hairball"]  # modify if you want others
+
+# 1. Density-based curves
+df_dens_curves = collect_gamma_curves(DENSITY_DIR, "density", target_meshes=[m.lower() for m in TARGET_MESHES])
+plot_error_vs_gamma_grid(df_dens_curves, "density", "error_vs_gamma_by_density")
+
+# 2. Distance-based curves
+df_dist_curves = collect_gamma_curves(DISTANCE_DIR, "distance", target_meshes=[m.lower() for m in TARGET_MESHES])
+plot_error_vs_gamma_grid(df_dist_curves, "distance", "error_vs_gamma_by_distance")

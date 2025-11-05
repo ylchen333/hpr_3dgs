@@ -17,7 +17,7 @@ meshes = [
     "../../data/erato.obj",
     "../../data/hairball.obj",
 ]
-densities = [1000, 5000, 10000, 20000]
+densities = [500, 1000, 2000, 5000, 10000, 20000, 50000, 100000]
 kernels = ["spherical_flip", "exp_inversion"]
 out_root = "../data/yannis_hpr/benchmarks_density"
 
