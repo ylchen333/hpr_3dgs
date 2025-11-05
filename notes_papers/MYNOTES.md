@@ -70,3 +70,20 @@ erato:
 hairball:
     Triangles: 2,880,000 
     Vertices: 1,441,098
+    Triangles: 2880000
+    Vertices: 1441098
+
+
+get gamma as an function of error -> 
+
+how sensitive is rendering to the gamma (does the 10% error make a significant difference in the rendering)?
+    render og 3dgs/2dgs vs hpr filtered points rendering for diff gammas
+    ^ run on lego truck
+    benchmark hpr on the lego nerf dataset (compare to 2dgs), get pointcloud reconstructed (run hpr on this, using mesh for groundtruth)
+    ^ then change 2dgs to render with hpr
+
+    -> how to do selection of gamma, (hopefully avoid O(nlogn) operations of computing curvature), train nn that takes input (pointcloud (or sparse), camera) -> output (gamma)
+    -> run hpr (use it to preseed/prepocess points), then refine with nn (n passes through nn)
+    -> learn inversion function (independent of gamma)
+    -> encoder/decoder arch, through one pass output some features (trained), decoder takes in an input (point cloud, features from encoder) and outputs a gamma -> makes query for gamma cheaper
+
