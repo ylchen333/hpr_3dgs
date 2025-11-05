@@ -3,7 +3,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import re
+import matplotlib.cm as cm
 import seaborn as sns 
+import colorsys
+import matplotlib.colors as mcolors
 
 # === CONFIG ===
 # Change to your directories
@@ -431,35 +434,68 @@ def collect_gamma_curves(results_dir, variable_name, target_meshes=None):
         return pd.DataFrame(columns=["mesh","kernel",variable_name,"gamma","TOTAL_rate"])
     return pd.concat(rows, ignore_index=True)
 
+
+
+def adjust_lightness(color, amount=1.0):
+    """
+    Lighten or darken a given color by multiplying the luminance.
+    color: hex string, RGB tuple, or named color
+    amount > 1.0 → lighter, < 1.0 → darker
+    """
+    rgb = mcolors.to_rgb(color)
+    h, l, s = colorsys.rgb_to_hls(*rgb)
+    new_l = max(0, min(1, l * amount))
+    r, g, b = colorsys.hls_to_rgb(h, new_l, s)
+    return (r, g, b)
+
 def plot_error_vs_gamma_grid(df, variable_name, out_name_prefix):
     """
     For each (mesh, kernel), plot a grid of error-vs-gamma curves,
-    one per variable value (density or distance).
+    one per variable value (density or distance),
+    using the mesh's base color and varying brightness by variable value.
+    Normalizes brightness range per plot.
     """
     if df.empty:
         print(f"⚠️ No data to plot for {variable_name}.")
         return
 
-    for (mesh, kernel), g in df.groupby(["mesh","kernel"]):
+    for (mesh, kernel), g in df.groupby(["mesh", "kernel"]):
         g = g.sort_values(variable_name)
         unique_vals = sorted(g[variable_name].unique())
         nvals = len(unique_vals)
+        if nvals == 0:
+            continue
 
+        base_color = MESH_COLORS.get(mesh, (0.5, 0.5, 0.5))
         plt.figure(figsize=(10, 6))
-        for val in unique_vals:
+
+        # Normalize per-plot so the smallest → darkest, largest → lightest
+        vmin, vmax = min(unique_vals), max(unique_vals)
+        if vmax == vmin:
+            normed_vals = [1.0] * nvals
+        else:
+            normed_vals = [(v - vmin) / (vmax - vmin) for v in unique_vals]
+
+        for val, frac in zip(unique_vals, normed_vals):
             sub = g[g[variable_name] == val].sort_values("gamma")
             label = f"{variable_name}={val:g}"
+
+            # Map normalized value to brightness in [0.6, 1.2]
+            light_factor = 0.6 + 0.6 * frac
+            color = adjust_lightness(base_color, light_factor)
+
             plt.plot(
                 sub["gamma"],
                 sub["TOTAL_rate"],
                 linewidth=2,
                 marker="o",
-                color=MESH_COLORS.get(mesh, "black"),
+                color=color,
                 linestyle=LINESTYLES.get(kernel, "solid"),
-                alpha=0.7,
-                label=label
+                alpha=0.9,
+                label=label,
             )
 
+        # Plot setup
         plt.xscale("log")
         plt.xlabel("Gamma (log scale)")
         plt.ylabel("Total Error Rate")
@@ -468,13 +504,10 @@ def plot_error_vs_gamma_grid(df, variable_name, out_name_prefix):
         plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize=9)
         plt.tight_layout()
 
-        out_path = os.path.join(
-            OUT_ROOT, f"{out_name_prefix}_{mesh}_{kernel}.png"
-        )
+        out_path = os.path.join(OUT_ROOT, f"{out_name_prefix}_{mesh}_{kernel}.png")
         plt.savefig(out_path, dpi=300)
         plt.close()
         print(f"✅ Saved {variable_name} gamma curve grid → {out_path}")
-
 # -----------------------------------------------------------
 # Run for all meshes and kernels across density & distance
 # -----------------------------------------------------------
