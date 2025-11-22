@@ -70,8 +70,6 @@ erato:
 hairball:
     Triangles: 2,880,000 
     Vertices: 1,441,098
-    Triangles: 2880000
-    Vertices: 1441098
 
 
 get gamma as an function of error -> 
@@ -87,3 +85,6 @@ how sensitive is rendering to the gamma (does the 10% error make a significant d
     -> learn inversion function (independent of gamma)
     -> encoder/decoder arch, through one pass output some features (trained), decoder takes in an input (point cloud, features from encoder) and outputs a gamma -> makes query for gamma cheaper
 
+/data/blender/lego
+
+in actual 2dgs visualization/rendered scenarios, idt we can actually control camera dist from the gaussian scene, this is user controlled.
