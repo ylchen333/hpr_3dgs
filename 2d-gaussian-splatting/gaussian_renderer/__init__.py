@@ -65,7 +65,7 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     visible_pts, visible_idx = HPR_Param(
         pts_t_torch, 
         cam_t.squeeze(0), 
-        gamma=6.43e-3,                        # You choose gamma here
+        6.43e-3,                        # choose gamma here, this gamma was chosen for lego based on a comparison of hpr on 3dgs point cloud compared to reconstructed mesh (not gt)
         use_linear=True
     )
 
@@ -89,6 +89,7 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
         colors_precomp = override_color[visible_idx]
 
     means2D = screenspace_points[visible_idx]
+
     # -------------------------- HPR edits -----------------------------------------------------------------
 
     # If precomputed 3d covariance is provided, use it. If not, then it will be computed from
