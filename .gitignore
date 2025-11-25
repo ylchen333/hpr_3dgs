@@ -8,3 +8,4 @@ __pycache__/
 hpr_naive_implementation/data/*
 hpr_exploration/data/*
 hpr_exploration/images/
+data/*
