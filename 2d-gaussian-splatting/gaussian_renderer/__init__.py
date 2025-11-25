@@ -60,6 +60,7 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
 
     # -------------------------- HPR edits -----------------------------------------------------------------
     if use_hpr:
+        print(f"hpr on")
         with torch.no_grad():
             pts = pc.get_xyz.detach()                          # (N,3)
             cam = viewpoint_camera.camera_center.detach()[None, :]  # (1,3)
