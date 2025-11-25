@@ -23,7 +23,6 @@ from gaussian_renderer import GaussianModel
 from utils.mesh_utils import GaussianExtractor, to_cam_open3d, post_process_mesh
 from utils.render_utils import generate_path, create_videos
 
-from hpr import HPR_Param
 
 import open3d as o3d
 
@@ -116,57 +115,57 @@ if __name__ == "__main__":
 
 
 
-    if args.hpr_render_path:
-        print("HPR-masked trajectory rendering...")
+    # if args.hpr_render_path:
+    #     print("HPR-masked trajectory rendering...")
 
 
-        traj_dir = os.path.join(args.model_path, 'traj_hpr', f"ours_{scene.loaded_iter}")
-        os.makedirs(traj_dir, exist_ok=True)
+    #     traj_dir = os.path.join(args.model_path, 'traj_hpr', f"ours_{scene.loaded_iter}")
+    #     os.makedirs(traj_dir, exist_ok=True)
 
-        n_frames = 240
-        cam_traj = generate_path(scene.getTrainCameras(), n_frames=n_frames)
+    #     n_frames = 240
+    #     cam_traj = generate_path(scene.getTrainCameras(), n_frames=n_frames)
 
-        # Pre-extract Gaussian centers
-        points_np = gaussians.get_xyz.detach().cpu().numpy()
+    #     # Pre-extract Gaussian centers
+    #     points_np = gaussians.get_xyz.detach().cpu().numpy()
 
-        # Store original opacity to restore each frame
-        original_opacity = gaussians._opacity.detach().clone()
+    #     # Store original opacity to restore each frame
+    #     original_opacity = gaussians._opacity.detach().clone()
 
-        # Choose gamma (you can make this an argument)
-        gamma = args.hpr_gamma
+    #     # Choose gamma (you can make this an argument)
+    #     gamma = args.hpr_gamma
 
-        for idx, cam in enumerate(tqdm(cam_traj)):
-            # --- run HPR from camera center ---
-            cam_pos = cam.camera_center.cpu().numpy()
+    #     for idx, cam in enumerate(tqdm(cam_traj)):
+    #         # --- run HPR from camera center ---
+    #         cam_pos = cam.camera_center.cpu().numpy()
 
-            pts_t = torch.tensor(points_np.T, dtype=torch.float32)
-            cam_t = torch.tensor(cam_pos, dtype=torch.float32)
+    #         pts_t = torch.tensor(points_np.T, dtype=torch.float32)
+    #         cam_t = torch.tensor(cam_pos, dtype=torch.float32)
 
-            visible_pts, visible_idx = HPR_Param(pts_t, cam_t, gamma, use_linear=False)
-            # visible_idx = visible_idx.cpu().numpy().ravel()
+    #         visible_pts, visible_idx = HPR_Param(pts_t, cam_t, gamma, use_linear=False)
+    #         # visible_idx = visible_idx.cpu().numpy().ravel()
 
-            # --- Build mask ---
-            mask = torch.zeros_like(gaussians._opacity)
-            mask[visible_idx] = original_opacity[visible_idx]
+    #         # --- Build mask ---
+    #         mask = torch.zeros_like(gaussians._opacity)
+    #         mask[visible_idx] = original_opacity[visible_idx]
 
-            # Override opacity
-            gaussians._opacity = torch.nn.Parameter(mask)
+    #         # Override opacity
+    #         gaussians._opacity = torch.nn.Parameter(mask)
 
-            # Render
-            render_pkg = render(cam, gaussians, pipe, background, use_hpr=True)
-            image = render_pkg["render"]
+    #         # Render
+    #         render_pkg = render(cam, gaussians, pipe, background, use_hpr=True)
+    #         image = render_pkg["render"]
 
-            # Save frame
-            out_path = os.path.join(traj_dir, f"hpr_{idx:05d}.png")
-            torchvision.utils.save_image(image, out_path)
+    #         # Save frame
+    #         out_path = os.path.join(traj_dir, f"hpr_{idx:05d}.png")
+    #         torchvision.utils.save_image(image, out_path)
 
-        # Restore full opacity 
-        gaussians._opacity = torch.nn.Parameter(original_opacity)
+    #     # Restore full opacity 
+    #     gaussians._opacity = torch.nn.Parameter(original_opacity)
 
-        # Generate video
-        create_videos(
-            base_dir=traj_dir,
-            input_dir=traj_dir,
-            out_name='render_traj_hpr',
-            num_frames=n_frames
-        )
+    #     # Generate video
+    #     create_videos(
+    #         base_dir=traj_dir,
+    #         input_dir=traj_dir,
+    #         out_name='render_traj_hpr',
+    #         num_frames=n_frames
+    #     )
