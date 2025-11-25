@@ -23,6 +23,8 @@ from gaussian_renderer import GaussianModel
 from utils.mesh_utils import GaussianExtractor, to_cam_open3d, post_process_mesh
 from utils.render_utils import generate_path, create_videos
 
+from hpr import HPR_Param
+
 import open3d as o3d
 
 if __name__ == "__main__":
@@ -36,6 +38,11 @@ if __name__ == "__main__":
     parser.add_argument("--skip_mesh", action="store_true")
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--render_path", action="store_true")
+
+    parser.add_argument("--hpr_render_path", action="store_true")
+    parser.add_argument("--hpr_gamma", type=float, default=1e-3)
+
+
     parser.add_argument("--voxel_size", default=-1.0, type=float, help='Mesh: voxel size for TSDF')
     parser.add_argument("--depth_trunc", default=-1.0, type=float, help='Mesh: Max depth range for TSDF')
     parser.add_argument("--sdf_trunc", default=-1.0, type=float, help='Mesh: truncation value for TSDF')
@@ -106,3 +113,60 @@ if __name__ == "__main__":
         mesh_post = post_process_mesh(mesh, cluster_to_keep=args.num_cluster)
         o3d.io.write_triangle_mesh(os.path.join(train_dir, name.replace('.ply', '_post.ply')), mesh_post)
         print("mesh post processed saved at {}".format(os.path.join(train_dir, name.replace('.ply', '_post.ply'))))
+
+
+
+    if args.hpr_render_path:
+        print("HPR-masked trajectory rendering...")
+
+
+        traj_dir = os.path.join(args.model_path, 'traj_hpr', f"ours_{scene.loaded_iter}")
+        os.makedirs(traj_dir, exist_ok=True)
+
+        n_frames = 240
+        cam_traj = generate_path(scene.getTrainCameras(), n_frames=n_frames)
+
+        # Pre-extract Gaussian centers
+        points_np = gaussians.get_xyz.detach().cpu().numpy()
+
+        # Store original opacity to restore each frame
+        original_opacity = gaussians._opacity.detach().clone()
+
+        # Choose gamma (you can make this an argument)
+        gamma = args.hpr_gamma
+
+        for idx, cam in enumerate(tqdm(cam_traj)):
+            # --- run HPR from camera center ---
+            cam_pos = cam.camera_center.cpu().numpy()
+
+            pts_t = torch.tensor(points_np.T, dtype=torch.float32)
+            cam_t = torch.tensor(cam_pos, dtype=torch.float32)
+
+            visible_pts, visible_idx = HPR_Param(pts_t, cam_t, gamma, use_linear=False)
+            # visible_idx = visible_idx.cpu().numpy().ravel()
+
+            # --- Build mask ---
+            mask = torch.zeros_like(gaussians._opacity)
+            mask[visible_idx] = original_opacity[visible_idx]
+
+            # Override opacity
+            gaussians._opacity = torch.nn.Parameter(mask)
+
+            # Render
+            render_pkg = render(cam, gaussians, pipe, background)
+            image = render_pkg["render"]
+
+            # Save frame
+            out_path = os.path.join(traj_dir, f"hpr_{idx:05d}.png")
+            torchvision.utils.save_image(image, out_path)
+
+        # Restore full opacity 
+        gaussians._opacity = torch.nn.Parameter(original_opacity)
+
+        # Generate video
+        create_videos(
+            base_dir=traj_dir,
+            input_dir=traj_dir,
+            out_name='render_traj_hpr',
+            num_frames=n_frames
+        )
