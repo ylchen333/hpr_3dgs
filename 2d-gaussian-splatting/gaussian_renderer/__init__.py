@@ -58,9 +58,9 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     opacity = pc.get_opacity
 
     # -------------------------- HPR edits -----------------------------------------------------------------
-    cam_t = viewpoint_camera.camera_center.reshape(1, 3)
+    cam_t = viewpoint_camera.camera_center[None, :]   # shape (1,3)
     pts_t = pc.get_xyz                      # Nx3
-    pts_t_torch = pts_t.T                   # Shape (3, N) for HPR
+    pts_t_torch = pts_t                  # Shape (N, 3) for HPR
 
     visible_pts, visible_idx = HPR_Param(
         pts_t_torch, 

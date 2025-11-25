@@ -19,6 +19,7 @@ def HPR_Param(points, view, param, use_linear=False):
     Returns:
         visible_idx (np.ndarray): Indices of visible points.
     """
+    device = points.device
 
     # --- Input validation ---
     if points.shape[0] == 3 and points.shape[1] != 3:
@@ -27,6 +28,7 @@ def HPR_Param(points, view, param, use_linear=False):
     # Convert to NumPy for convex hull
     points = points.detach().cpu().numpy()
     view = view.detach().cpu().numpy().reshape(1, 3)
+    # TODO: at some point add gpu based convexhull library
 
     num_pts, dim = points.shape
 
@@ -53,8 +55,11 @@ def HPR_Param(points, view, param, use_linear=False):
     except Exception as e:
         raise RuntimeError(f"HPR convex hull failed: {e}")
 
+    # Extract visible vertices
     visible_idx = np.unique(hull.vertices)
-    visible_idx = visible_idx[visible_idx < num_pts]  # remove the origin index
-    visible_pts = torch.tensor(points[visible_idx].T, dtype=torch.float32)
+    visible_idx = visible_idx[visible_idx < num_pts]
 
-    return visible_pts, visible_idx
+    visible_pts = torch.from_numpy(points[visible_idx].T).float().to(device)
+    visible_idx_torch = torch.from_numpy(visible_idx).long().to(device)
+
+    return visible_pts, visible_idx_torch
