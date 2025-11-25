@@ -67,7 +67,7 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
             visible_idx_np = HPR_Param(
                 pts, cam,
                 param=hpr_gamma,
-                use_linear=True,   # your choice: flip vs exp options
+                use_linear=True,   #
             )
 
             visible_idx = torch.from_numpy(visible_idx_np).long().to(pts.device)

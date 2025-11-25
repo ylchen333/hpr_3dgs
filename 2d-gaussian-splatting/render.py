@@ -26,6 +26,11 @@ from utils.render_utils import generate_path, create_videos
 
 import open3d as o3d
 
+
+def render_with_hpr(cam, pc, pipe, bg, gamma=None):
+    return render(cam, pc, pipe, bg, use_hpr=True, hpr_gamma=gamma)
+
+
 if __name__ == "__main__":
     # Set up command line argument parser
     parser = ArgumentParser(description="Testing script parameters")
@@ -60,7 +65,17 @@ if __name__ == "__main__":
     
     train_dir = os.path.join(args.model_path, 'train', "ours_{}".format(scene.loaded_iter))
     test_dir = os.path.join(args.model_path, 'test', "ours_{}".format(scene.loaded_iter))
-    gaussExtractor = GaussianExtractor(gaussians, render, pipe, bg_color=bg_color)    
+
+    # choose based on flag
+    renderer_to_use = (
+        lambda cam, pc, pipe, bg: render(cam, pc, pipe, bg,
+                                        use_hpr=True,
+                                        hpr_gamma=args.hpr_gamma)
+        if args.hpr_render_path else render
+    )
+
+    gaussExtractor = GaussianExtractor(gaussians, renderer_to_use, pipe, bg_color=bg_color)
+    # gaussExtractor = GaussianExtractor(gaussians, render, pipe, bg_color=bg_color)    
     
     if not args.skip_train:
         print("export training images ...")
