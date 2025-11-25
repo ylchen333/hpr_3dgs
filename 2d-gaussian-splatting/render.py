@@ -153,7 +153,7 @@ if __name__ == "__main__":
             gaussians._opacity = torch.nn.Parameter(mask)
 
             # Render
-            render_pkg = render(cam, gaussians, pipe, background)
+            render_pkg = render(cam, gaussians, pipe, background, use_hpr=True)
             image = render_pkg["render"]
 
             # Save frame

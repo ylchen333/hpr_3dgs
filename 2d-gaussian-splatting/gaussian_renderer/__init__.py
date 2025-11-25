@@ -17,7 +17,8 @@ from utils.sh_utils import eval_sh
 from utils.point_utils import depth_to_normal
 from utils.hpr_utils import HPR_Param
 
-def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, scaling_modifier = 1.0, override_color = None):
+def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, scaling_modifier = 1.0, override_color = None
+           , use_hpr=False, hpr_gamma=6.43e-3):
     """
     Render the scene. 
     
@@ -58,38 +59,26 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     opacity = pc.get_opacity
 
     # -------------------------- HPR edits -----------------------------------------------------------------
-    cam_t = viewpoint_camera.camera_center[None, :]   # shape (1,3)
-    pts_t = pc.get_xyz                      # Nx3
-    pts_t_torch = pts_t                  # Shape (N, 3) for HPR
+    if use_hpr:
+        with torch.no_grad():
+            pts = pc.get_xyz.detach()                          # (N,3)
+            cam = viewpoint_camera.camera_center.detach()[None, :]  # (1,3)
 
-    visible_pts, visible_idx = HPR_Param(
-        pts_t_torch, 
-        cam_t.squeeze(0), 
-        6.43e-3,                        # choose gamma here, this gamma was chosen for lego based on a comparison of hpr on 3dgs point cloud compared to reconstructed mesh (not gt)
-        use_linear=True
-    )
+            visible_idx_np = HPR_Param(
+                pts, cam,
+                param=hpr_gamma,
+                use_linear=True,   # your choice: flip vs exp options
+            )
 
-    visible_idx = visible_idx.long()
+            visible_idx = torch.from_numpy(visible_idx_np).long().to(pts.device)
 
-    # mask gaussian model
-    means3D = pc.get_xyz[visible_idx]
-    opacity = pc.get_opacity[visible_idx]
-    if pipe.compute_cov3D_python:
-        cov3D_precomp = cov3D_precomp[visible_idx]
-    else:
-        scales = pc.get_scaling[visible_idx]
-        rotations = pc.get_rotation[visible_idx]
+            # Build mask: 1 for visible, 0 for invisible
+            mask = torch.zeros(pts.shape[0], device=pts.device, dtype=torch.float32)
+            mask[visible_idx] = 1.0
 
-    if override_color is None:
-        if pipe.convert_SHs_python:
-            colors_precomp = colors_precomp[visible_idx]
-        else:
-            shs = pc.get_features[visible_idx]
-    else:
-        colors_precomp = override_color[visible_idx]
-
-    means2D = screenspace_points[visible_idx]
-
+        # Broadcast mask to match opacity shape (N,1)
+        opacity = pc.get_opacity * mask.unsqueeze(-1)
+    # ------------------------------------------------------------------------
     # -------------------------- HPR edits -----------------------------------------------------------------
 
     # If precomputed 3d covariance is provided, use it. If not, then it will be computed from

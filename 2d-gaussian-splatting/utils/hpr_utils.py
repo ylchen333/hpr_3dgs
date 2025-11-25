@@ -19,7 +19,7 @@ def HPR_Param(points, view, param, use_linear=False):
     Returns:
         visible_idx (np.ndarray): Indices of visible points.
     """
-    device = points.device
+    # device = points.device
 
     # --- Input validation ---
     if points.shape[0] == 3 and points.shape[1] != 3:
@@ -59,7 +59,7 @@ def HPR_Param(points, view, param, use_linear=False):
     visible_idx = np.unique(hull.vertices)
     visible_idx = visible_idx[visible_idx < num_pts]
 
-    visible_pts = torch.from_numpy(points[visible_idx].T).float().to(device)
-    visible_idx_torch = torch.from_numpy(visible_idx).long().to(device)
+    # visible_pts = torch.from_numpy(points[visible_idx].T).float().to(device)
+    # visible_idx_torch = torch.from_numpy(visible_idx).long().to(device)
 
-    return visible_pts, visible_idx_torch
+    return visible_idx
