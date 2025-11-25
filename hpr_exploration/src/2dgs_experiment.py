@@ -34,6 +34,13 @@ python render.py -s ../data/blender/lego -m output/blender/lego --unbounded --sk
 bounded mesh extraction if you focus on foreground
 python render.py -s ../data/blender/lego -m output/blender/lego --skip_test --skip_train --mesh_res 1024
 
+
+after hpr addition:
+python train.py -s ../data/blender/lego -m output/hpr/blender/lego
+python render.py -s ../data/blender/lego -m output/hpr/blender/lego --unbounded --skip_test --skip_train --mesh_res 1024
+python render.py -s ../data/blender/lego -m output/hpr/blender/lego --skip_test --skip_train --mesh_res 1024
+
+
 """
 
 #----------------------------------------------------------------------------------------------------------------------------

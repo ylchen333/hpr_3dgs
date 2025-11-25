@@ -15,6 +15,7 @@ from diff_surfel_rasterization import GaussianRasterizationSettings, GaussianRas
 from scene.gaussian_model import GaussianModel
 from utils.sh_utils import eval_sh
 from utils.point_utils import depth_to_normal
+from utils.hpr_utils import HPR_Param
 
 def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, scaling_modifier = 1.0, override_color = None):
     """
@@ -55,6 +56,40 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     means3D = pc.get_xyz
     means2D = screenspace_points
     opacity = pc.get_opacity
+
+    # -------------------------- HPR edits -----------------------------------------------------------------
+    cam_t = viewpoint_camera.camera_center.reshape(1, 3)
+    pts_t = pc.get_xyz                      # Nx3
+    pts_t_torch = pts_t.T                   # Shape (3, N) for HPR
+
+    visible_pts, visible_idx = HPR_Param(
+        pts_t_torch, 
+        cam_t.squeeze(0), 
+        gamma=6.43e-3,                        # You choose gamma here
+        use_linear=True
+    )
+
+    visible_idx = visible_idx.long()
+
+    # mask gaussian model
+    means3D = pc.get_xyz[visible_idx]
+    opacity = pc.get_opacity[visible_idx]
+    if pipe.compute_cov3D_python:
+        cov3D_precomp = cov3D_precomp[visible_idx]
+    else:
+        scales = pc.get_scaling[visible_idx]
+        rotations = pc.get_rotation[visible_idx]
+
+    if override_color is None:
+        if pipe.convert_SHs_python:
+            colors_precomp = colors_precomp[visible_idx]
+        else:
+            shs = pc.get_features[visible_idx]
+    else:
+        colors_precomp = override_color[visible_idx]
+
+    means2D = screenspace_points[visible_idx]
+    # -------------------------- HPR edits -----------------------------------------------------------------
 
     # If precomputed 3d covariance is provided, use it. If not, then it will be computed from
     # scaling / rotation by the rasterizer.
