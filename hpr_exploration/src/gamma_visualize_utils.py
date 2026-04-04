@@ -572,6 +572,8 @@ def benchmark_HPR_visibility(points, camera_origin, kernel, gamma_values, R_pred
     plt.savefig(img_path, dpi=300)
     plt.close(fig)
     print(f"[Saved plot] {img_path}")
+
+    return df
     # df = pd.DataFrame(results, columns=["gamma", "TOTAL_rate", "FP_rate", "FN_rate"])
     # df.to_csv(os.path.join(outdir, f"benchmark_{kernel}.csv"), index=False)
 
